@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- filename: qiwo.xml -->
+<component>
+	<name>im.rime.Qiwo</name>
+	<description>Qiwo Component</description>
+	<exec>@CMAKE_INSTALL_FULL_LIBEXECDIR@/ibus-qiwo/ibus-engine-qiwo --ibus</exec>
+	<version>1.0</version>
+	<author>Qiwo Authors</author>
+	<license>GPL</license>
+	<homepage>https://qiwo.im</homepage>
+	<textdomain>ibus-qiwo</textdomain>
+	<engines>
+		<engine>
+			<name>qiwo</name>
+			<language>zh</language>
+			<license>GPL</license>
+			<author>Qiwo Authors</author>
+			<icon>@CMAKE_INSTALL_FULL_DATADIR@/ibus-qiwo/icons/qiwo.png</icon>
+			<layout>default</layout>
+			<longname>齐我输入法</longname>
+			<description>Qiwo Input Method Engine</description>
+			<rank>0</rank>
+			<symbol>&#x37A2;</symbol>
+		</engine>
+	</engines>
+</component>

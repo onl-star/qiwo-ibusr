@@ -1,0 +1,9 @@
+#ifndef RIME_CONFIG_H_
+#define RIME_CONFIG_H_
+
+#define QIWO_IBUS_VERSION "@qiwo_ibus_version@"
+
+#define IBUS_RIME_ICONS_DIR "@ibus_rime_icons_dir@"
+#define IBUS_RIME_SHARED_DATA_DIR "@RIME_DATA_DIR@"
+
+#endif  // RIME_CONFIG_H_
