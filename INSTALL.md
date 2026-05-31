@@ -45,6 +45,23 @@ sudo pacman -S \
   python
 ```
 
+## 源码准备
+
+qiwo-ibusr 使用系统包管理器安装的 librime，不需要本地子模块。但如果是通过 git 获取源码，建议递归克隆：
+
+```bash
+git clone --recursive https://github.com/qiwo/qiwo-ibusr.git
+cd qiwo-ibusr
+```
+
+如果已克隆但没有子模块内容（目录为空），初始化它们：
+
+```bash
+git submodule update --init --recursive
+```
+
+> 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。
+
 ## 编译
 
 ```bash
