@@ -164,7 +164,7 @@ def scan_files(user_dir):
                     st.st_mtime, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     return files
 
-def sync(user_dir, client, device_id):
+def sync(user_dir, client, device_id, frontend):
     sync_dir = os.path.join(user_dir, ".qiwo-sync")
     os.makedirs(sync_dir, exist_ok=True)
     backup_dir = os.path.join(sync_dir, "backups")
@@ -222,7 +222,7 @@ def sync(user_dir, client, device_id):
             print(f"Error syncing {path}: {e}", file=sys.stderr)
 
     manifest = {"version": VERSION, "device_id": device_id,
-                "frontend": "ibus-rime", "updated_at": "", "files": new_files}
+                "frontend": frontend, "updated_at": "", "files": new_files}
     save_manifest(local_mf_path, manifest)
     client.upload_manifest(json.dumps(manifest).encode())
     return stats
@@ -261,6 +261,7 @@ def main():
     p.add_argument("--password", default="")
     p.add_argument("--password-env", default="QIWO_WEBDAV_PASSWORD")
     p.add_argument("--device-id", default="")
+    p.add_argument("--frontend", default="ibus-rime")
     p.add_argument("--json", action="store_true")
     args = p.parse_args()
 
@@ -270,7 +271,7 @@ def main():
 
     device_id = args.device_id or os.uname().nodename
     client = WebDavClient(args.remote_url, args.username, password)
-    stats = sync(args.rime_user_dir, client, device_id)
+    stats = sync(args.rime_user_dir, client, device_id, args.frontend)
 
     if args.json:
         print(json.dumps(stats))
