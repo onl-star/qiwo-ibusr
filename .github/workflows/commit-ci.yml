@@ -1,0 +1,79 @@
+name: Commit
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake pkg-config \
+            libibus-1.0-dev libnotify-dev librime-dev \
+            git
+
+      - name: Configure build
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr ..
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Package
+        run: |
+          VERSION=$(git describe --always)
+          PKG_DIR=/tmp/qiwo-ibus-${VERSION}
+
+          mkdir -p ${PKG_DIR}/bin
+          mkdir -p ${PKG_DIR}/icons
+
+          cp build/ibus-engine-rime ${PKG_DIR}/bin/
+          cp build/qiwo.xml ${PKG_DIR}/
+          cp -r icons/* ${PKG_DIR}/icons/ 2>/dev/null || true
+          cp qiwo_sync.py ${PKG_DIR}/
+
+          cat > ${PKG_DIR}/install.sh << 'INSTALL_EOF'
+          #!/usr/bin/env bash
+          set -e
+
+          PREFIX="${PREFIX:-/usr}"
+          echo "==> 安装 Qiwo Input Method for Linux ..."
+
+          sudo mkdir -p "${PREFIX}/libexec/qiwo"
+          sudo mkdir -p "${PREFIX}/share/ibus/component"
+          sudo mkdir -p "${PREFIX}/share/qiwo/icons"
+          sudo mkdir -p "${PREFIX}/bin"
+
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+          sudo cp "${SCRIPT_DIR}/bin/ibus-engine-rime" "${PREFIX}/libexec/qiwo/"
+          sudo cp "${SCRIPT_DIR}/qiwo.xml" "${PREFIX}/share/ibus/component/"
+          sudo cp -r "${SCRIPT_DIR}/icons/"* "${PREFIX}/share/qiwo/icons/" 2>/dev/null || true
+          sudo cp "${SCRIPT_DIR}/qiwo_sync.py" "${PREFIX}/share/qiwo/"
+
+          echo "==> 重启 IBus ..."
+          ibus-daemon -drx 2>/dev/null || true
+
+          echo "==> 安装完成！请在 IBus 设置中添加「齐我输入法」"
+          INSTALL_EOF
+          chmod +x ${PKG_DIR}/install.sh
+
+          cd /tmp
+          tar -czf qiwo-ibus-${VERSION}.tar.gz qiwo-ibus-${VERSION}/
+          echo "Package: /tmp/qiwo-ibus-${VERSION}.tar.gz"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: Qiwo-Linux-${{ github.sha }}
+          path: /tmp/qiwo-ibus-*.tar.gz
+          retention-days: 90
