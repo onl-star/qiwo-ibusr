@@ -91,6 +91,8 @@ static void ibus_disconnect_cb(IBusBus *bus, gpointer user_data) {
   ibus_quit();
 }
 
+static gboolean auto_sync_callback(gpointer user_data);
+
 static void rime_with_ibus() {
   ibus_init();
   IBusBus *bus = ibus_bus_new();
