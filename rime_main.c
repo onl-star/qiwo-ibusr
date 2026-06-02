@@ -126,7 +126,21 @@ static void rime_with_ibus() {
   ibus_rime_start(full_check);
   ibus_rime_load_settings();
 
+  // 安装自动同步词库定时器
+  guint auto_sync_timer_id = 0;
+  if (g_ibus_rime_settings.auto_sync_interval_seconds > 0) {
+    auto_sync_timer_id = g_timeout_add_seconds(
+        g_ibus_rime_settings.auto_sync_interval_seconds,
+        auto_sync_callback, NULL);
+    g_debug("auto-sync timer installed: %u seconds",
+            g_ibus_rime_settings.auto_sync_interval_seconds);
+  }
+
   ibus_main();
+
+  if (auto_sync_timer_id > 0) {
+    g_source_remove(auto_sync_timer_id);
+  }
 
   ibus_rime_stop();
   notify_uninit();
@@ -155,6 +169,17 @@ static char* get_qiwo_sync_script(void) {
   return NULL;
 }
 
+static gboolean auto_sync_callback(gpointer user_data) {
+  if (g_ibus_rime_settings.auto_sync_interval_seconds == 0)
+    return G_SOURCE_REMOVE;
+
+  if (rime_api) {
+    rime_api->sync_user_data();
+  }
+  ibus_rime_sync_user_data();
+  return G_SOURCE_CONTINUE;
+}
+
 void ibus_rime_sync_user_data(void) {
   char* script = get_qiwo_sync_script();
   if (!script) return;  // qiwo_sync.py not installed, skip
@@ -164,7 +189,7 @@ void ibus_rime_sync_user_data(void) {
 
   GString* cmd = g_string_new("python3 \"");
   g_string_append(cmd, script);
-  g_string_append(cmd, "\" sync --frontend ibus-rime --rime-user-dir \"");
+  g_string_append(cmd, "\" sync-user-dict --frontend ibus-rime --rime-user-dir \"");
   g_string_append(cmd, user_data_dir);
   g_string_append(cmd, "\"");
 
