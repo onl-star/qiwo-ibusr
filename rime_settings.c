@@ -19,6 +19,7 @@ static struct IBusRimeSettings ibus_rime_settings_default = {
   .cursor_type = CURSOR_TYPE_INSERT,
   .lookup_table_orientation = IBUS_ORIENTATION_SYSTEM,
   .color_scheme = NULL,
+  .auto_sync_interval_seconds = 0,
 };
 
 struct IBusRimeSettings g_ibus_rime_settings;
@@ -86,6 +87,13 @@ ibus_rime_load_settings()
     rime_api->config_get_cstring(&config, "style/color_scheme");
   if (color_scheme) {
     select_color_scheme(&g_ibus_rime_settings, color_scheme);
+  }
+
+  // 读取自动同步词库间隔（分钟，0 = 禁用）
+  int interval_minutes = 0;
+  if (rime_api->config_get_int(&config, "sync/auto_sync_interval_minutes", &interval_minutes)) {
+    g_ibus_rime_settings.auto_sync_interval_seconds =
+      (guint)(interval_minutes > 0 ? interval_minutes * 60 : 0);
   }
 
   rime_api->config_close(&config);

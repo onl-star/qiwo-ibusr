@@ -8,6 +8,10 @@ config_version: '1.0'
 #   export QIWO_WEBDAV_USERNAME="username"
 #   export QIWO_WEBDAV_PASSWORD="password"
 #   export QIWO_DEVICE_ID="linux-main"
+#
+# Auto-sync user dictionary (sync-user-dict mode):
+#   sync:
+#     auto_sync_interval_minutes: 60   # 0 = disabled, minimum 1 minute
 
 style:
   # candidate list orientation (false|true).
