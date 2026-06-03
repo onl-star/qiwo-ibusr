@@ -72,7 +72,7 @@ jobs:
           echo "Package: /tmp/qiwo-ibus-${VERSION}.tar.gz"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Qiwo-Linux-${{ github.sha }}
           path: /tmp/qiwo-ibus-*.tar.gz

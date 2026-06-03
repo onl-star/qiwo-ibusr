@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,6 +19,12 @@ jobs:
           submodules: true
           fetch-depth: 0
 
+      - name: Checkout qiwo-sync-core
+        uses: actions/checkout@v6
+        with:
+          repository: LeaWron/qiwo-sync-core
+          path: qiwo-sync-core
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -23,6 +32,12 @@ jobs:
             build-essential cmake pkg-config \
             libibus-1.0-dev libnotify-dev librime-dev \
             git
+
+      - name: Setup Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Build qiwo-sync-core
+        run: cargo build --manifest-path qiwo-sync-core/Cargo.toml --release -p qiwo-rime-sync
 
       - name: Configure build
         run: |
@@ -44,7 +59,7 @@ jobs:
           cp build/ibus-engine-rime ${PKG_DIR}/bin/
           cp build/qiwo.xml ${PKG_DIR}/
           cp -r icons/* ${PKG_DIR}/icons/ 2>/dev/null || true
-          cp qiwo_sync.py ${PKG_DIR}/
+          cp qiwo-sync-core/target/release/qiwo-rime-sync ${PKG_DIR}/bin/
 
           cat > ${PKG_DIR}/install.sh << 'INSTALL_EOF'
           #!/usr/bin/env bash
@@ -63,7 +78,7 @@ jobs:
           sudo cp "${SCRIPT_DIR}/bin/ibus-engine-rime" "${PREFIX}/libexec/qiwo/"
           sudo cp "${SCRIPT_DIR}/qiwo.xml" "${PREFIX}/share/ibus/component/"
           sudo cp -r "${SCRIPT_DIR}/icons/"* "${PREFIX}/share/qiwo/icons/" 2>/dev/null || true
-          sudo cp "${SCRIPT_DIR}/qiwo_sync.py" "${PREFIX}/share/qiwo/"
+          sudo cp "${SCRIPT_DIR}/bin/qiwo-rime-sync" "${PREFIX}/bin/"
 
           echo "==> 重启 IBus ..."
           ibus-daemon -drx 2>/dev/null || true
@@ -78,8 +93,7 @@ jobs:
           echo "tarball=/tmp/qiwo-ibus-${VERSION}.tar.gz" >> $GITHUB_ENV
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v3
         with:
-          artifacts: "/tmp/qiwo-ibus-*.tar.gz"
+          files: "/tmp/qiwo-ibus-*.tar.gz"
           draft: true
-          token: ${{ secrets.GITHUB_TOKEN }}

@@ -35,7 +35,7 @@ REMOTE_MANIFEST_FILE = ".qiwo-sync-manifest.json"
 FROST_SCHEMA_FILE = "rime_frost.schema.yaml"
 DEFAULT_CUSTOM_YAML = "default.custom.yaml"
 
-# ── File Selector (aligned with C# FileSelector.ShouldSync) ──────
+# ── File Selector (aligned with Rust qiwo-sync-core) ─────────────
 
 INCLUDED_EXACT = {"custom_phrase.txt", "symbols.yaml"}
 INCLUDED_EXTENSIONS = (".custom.yaml", ".schema.yaml", ".dict.yaml")
@@ -46,7 +46,7 @@ EXCLUDED_SUFFIXES = (".table.bin", ".reverse.bin", ".userdb")
 
 
 def should_sync(relpath):
-    """判断文件是否应该同步，与 C# FileSelector.ShouldSync 一致。"""
+    """判断文件是否应该同步，与 Rust qiwo-sync-core FileSelector 一致。"""
     p = relpath.replace("\\", "/").lstrip("/")
     if not p:
         return False
@@ -87,7 +87,7 @@ def should_sync(relpath):
 
 
 def is_frost_resource(relpath):
-    """判断文件是否应该从 frost 目录复制（与 C# FrostInitializer.IsFrostResource 一致）。"""
+    """判断文件是否应该从 frost 目录复制（与 Rust qiwo-sync-core 一致）。"""
     if should_sync(relpath):
         return True
     lower = relpath.lower().replace("\\", "/").lstrip("/")
@@ -112,7 +112,7 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-# ── Installation Helper (aligned with C# InstallationHelper) ──────
+# ── Installation Helper (aligned with Rust qiwo-sync-core) ────────
 
 SYNC_DIR_NAME = "sync"
 
@@ -124,7 +124,7 @@ def make_safe_id(device_id):
 
 def ensure_installation(user_dir, device_id):
     """确保 installation.yaml 存在且包含正确的 installation_id 和 sync_dir。
-    与 C# InstallationHelper.Ensure 一致。"""
+    与 Rust qiwo-sync-core InstallationHelper 一致。"""
     file_path = os.path.join(user_dir, "installation.yaml")
     safe_id = make_safe_id(device_id)
 
@@ -212,7 +212,7 @@ class WebDavClient:
             return 0, str(e).encode()
 
     def ensure_root(self):
-        """确保远端根目录存在（MKCOL，与 C# EnsureRootAsync 一致）。"""
+        """确保远端根目录存在（MKCOL）。"""
         status, _ = self._req("MKCOL", "")
         # 201=created, 405=already exists, 200/204=ok
         if status in (200, 201, 204, 405):
@@ -263,7 +263,7 @@ class WebDavClient:
 # ── Sync Engine ───────────────────────────────────────────────────
 
 def scan_files(user_dir):
-    """扫描本地文件（仅通过 should_sync 过滤，与 C# LocalFileStore.Scan 一致）。"""
+    """扫描本地文件，仅通过 should_sync 过滤。"""
     files = {}
     for root, dirs, filenames in os.walk(user_dir):
         # os.walk 进入子目录，由 should_sync 负责过滤
@@ -293,7 +293,7 @@ def _prepare_dirs(user_dir):
 def _do_three_way_merge(user_dir, client, device_id, frontend,
                          local_files, remote_files, prev_files,
                          dry_run=False, label="Sync"):
-    """三路合并核心逻辑，与 C# SyncEngine.SyncAsync 一致。"""
+    """三路合并核心逻辑，与 Rust qiwo-sync-core 一致。"""
     _, backup_dir, local_mf_path = _prepare_dirs(user_dir)
 
     all_paths = set(local_files.keys()) | set(remote_files.keys()) | set(prev_files.keys())
@@ -400,7 +400,7 @@ def sync(user_dir, client, device_id, frontend, dry_run=False):
 
 
 def sync_user_dict(user_dir, client, device_id, frontend, dry_run=False):
-    """仅同步用户词库（sync/ 目录），与 C# SyncUserDictAsync 一致。"""
+    """仅同步用户词库（sync/ 目录），与 Rust qiwo-sync-core 一致。"""
     _, _, local_mf_path = _prepare_dirs(user_dir)
     local_files = scan_files(user_dir)
     prev_manifest = load_manifest(local_mf_path)
@@ -469,7 +469,7 @@ def pull(user_dir, client, device_id, frontend, dry_run=False):
 
 def init_frost(user_dir, frost_dir, dry_run=False):
     """初始化 rime-frost：将方案文件复制到 Rime 用户目录。
-    与 C# FrostInitializer.InitializeAsync 一致。"""
+    与 Rust qiwo-sync-core 一致。"""
     frost_dir = os.path.abspath(frost_dir)
     if not os.path.isdir(frost_dir):
         print(f"Error: frost directory not found: {frost_dir}", file=sys.stderr)
