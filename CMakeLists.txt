@@ -68,5 +68,5 @@ configure_file(
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo.xml" DESTINATION "${CMAKE_INSTALL_DATADIR}/ibus/component")
 install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
-install(FILES qiwo_sync.py DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo")
+install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTIONAL)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
