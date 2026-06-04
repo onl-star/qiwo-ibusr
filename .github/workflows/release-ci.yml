@@ -22,7 +22,7 @@ jobs:
       - name: Checkout qiwo-sync-core
         uses: actions/checkout@v6
         with:
-          repository: LeaWron/qiwo-sync-core
+          repository: ${{ github.repository_owner }}/qiwo-sync-core
           path: qiwo-sync-core
 
       - name: Install system dependencies
