@@ -195,6 +195,9 @@ static void qiwo_ensure_installation_yaml(const char* user_data_dir,
   snprintf(sync_dir, sizeof(sync_dir), "%s/sync/%s", user_data_dir, safe_id);
   g_mkdir_with_parents(sync_dir, 0700);
 
+  char sync_dir_yaml[PATH_MAX];
+  snprintf(sync_dir_yaml, sizeof(sync_dir_yaml), "%s/sync", user_data_dir);
+
   gchar* content = NULL;
   if (g_file_get_contents(file_path, &content, NULL, NULL)) {
     gchar** lines = g_strsplit(content, "\n", -1);
@@ -205,6 +208,8 @@ static void qiwo_ensure_installation_yaml(const char* user_data_dir,
     for (int i = 0; lines[i]; i++) {
       if (g_str_has_prefix(lines[i], "sync_dir:")) {
         has_sync_dir = TRUE;
+        g_string_append_printf(updated, "sync_dir: \"%s\"\n", sync_dir_yaml);
+        continue;
       }
       if (g_str_has_prefix(lines[i], "installation_id:")) {
         has_install_id = TRUE;
@@ -216,7 +221,7 @@ static void qiwo_ensure_installation_yaml(const char* user_data_dir,
     }
 
     if (!has_sync_dir) {
-      g_string_append(updated, "sync_dir: \"sync\"\n");
+      g_string_append_printf(updated, "sync_dir: \"%s\"\n", sync_dir_yaml);
     }
     if (!has_install_id) {
       g_string_append_printf(updated, "installation_id: \"%s\"\n", safe_id);
@@ -231,8 +236,8 @@ static void qiwo_ensure_installation_yaml(const char* user_data_dir,
         "distribution: \"Qiwo\"\n"
         "distribution_version: \"1.0\"\n"
         "installation_id: \"%s\"\n"
-        "sync_dir: \"sync\"\n",
-        safe_id);
+        "sync_dir: \"%s\"\n",
+        safe_id, sync_dir_yaml);
     g_file_set_contents(file_path, yaml, -1, NULL);
     g_free(yaml);
   }
@@ -242,13 +247,7 @@ static gboolean auto_sync_callback(gpointer user_data) {
   if (g_ibus_rime_settings.auto_sync_interval_seconds == 0)
     return G_SOURCE_REMOVE;
 
-  if (rime_api) {
-    rime_api->sync_user_data();
-  }
   ibus_rime_sync_user_data();
-  if (rime_api) {
-    rime_api->sync_user_data();
-  }
   return G_SOURCE_CONTINUE;
 }
 
@@ -263,6 +262,10 @@ void ibus_rime_sync_user_data(void) {
   const char* device_id = g_getenv("QIWO_DEVICE_ID");
   if (!device_id) device_id = g_get_host_name();
   qiwo_ensure_installation_yaml(user_data_dir, device_id);
+
+  if (rime_api) {
+    rime_api->sync_user_data();
+  }
 
   GString* cmd = g_string_new("\"");
   g_string_append(cmd, tool);
@@ -305,6 +308,8 @@ void ibus_rime_sync_user_data(void) {
     g_warning("Qiwo WebDAV sync failed: %s (exit=%d)",
               error ? error->message : (error_output ? error_output : "unknown"),
               exit_code);
+  } else if (rime_api) {
+    rime_api->sync_user_data();
   }
 
   g_free(output);

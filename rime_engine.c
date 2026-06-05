@@ -556,9 +556,8 @@ static void ibus_rime_engine_property_activate (IBusEngine *engine,
     ibus_rime_engine_update(rime_engine);
   }
   else if (!strcmp("sync", prop_name)) {
-    rime_api->sync_user_data();
-    ibus_rime_engine_update(rime_engine);
     ibus_rime_sync_user_data();
+    ibus_rime_engine_update(rime_engine);
   }
   else if (!strcmp("InputMode", prop_name)) {
     rime_api->set_option(

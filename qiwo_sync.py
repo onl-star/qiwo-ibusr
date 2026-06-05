@@ -119,7 +119,13 @@ SYNC_DIR_NAME = "sync"
 
 def make_safe_id(device_id):
     """将设备 ID 转换为文件系统安全的目录名。"""
-    return device_id.replace(" ", "-").replace(":", "-").replace("\\", "-").replace("/", "-").lower()
+    safe_id = device_id.replace(" ", "-").replace(":", "-").replace("\\", "-").replace("/", "-").lower()
+    return safe_id or "unknown"
+
+
+def sync_dir_for_yaml(user_dir):
+    """Rime treats sync_dir literally, so keep it absolute under the user dir."""
+    return os.path.join(user_dir, SYNC_DIR_NAME).replace("\\", "/")
 
 
 def ensure_installation(user_dir, device_id):
@@ -127,23 +133,41 @@ def ensure_installation(user_dir, device_id):
     与 Rust qiwo-sync-core InstallationHelper 一致。"""
     file_path = os.path.join(user_dir, "installation.yaml")
     safe_id = make_safe_id(device_id)
+    sync_dir = sync_dir_for_yaml(user_dir)
 
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
-            existing = f.read().rstrip()
+            lines = f.read().splitlines()
         needs_update = False
-        updated = existing
+        updated_lines = []
+        has_sync_dir = False
+        has_installation_id = False
 
-        if "sync_dir:" not in updated:
-            updated += '\nsync_dir: "sync"\n'
+        for line in lines:
+            stripped = line.lstrip()
+            if stripped.startswith("sync_dir:"):
+                has_sync_dir = True
+                new_line = f'sync_dir: "{sync_dir}"'
+                updated_lines.append(new_line)
+                needs_update = needs_update or line != new_line
+            elif stripped.startswith("installation_id:"):
+                has_installation_id = True
+                new_line = f'installation_id: "{safe_id}"'
+                updated_lines.append(new_line)
+                needs_update = needs_update or line != new_line
+            else:
+                updated_lines.append(line)
+
+        if not has_sync_dir:
+            updated_lines.append(f'sync_dir: "{sync_dir}"')
             needs_update = True
-        if "installation_id:" not in updated:
-            updated += f'\ninstallation_id: "{safe_id}"\n'
+        if not has_installation_id:
+            updated_lines.append(f'installation_id: "{safe_id}"')
             needs_update = True
 
         if needs_update:
             with open(file_path, "w", encoding="utf-8") as f:
-                f.write(updated)
+                f.write("\n".join(updated_lines).rstrip() + "\n")
         return
 
     # 新建
@@ -151,7 +175,7 @@ def ensure_installation(user_dir, device_id):
         'distribution: "Qiwo"\n'
         'distribution_version: "1.0"\n'
         f'installation_id: "{safe_id}"\n'
-        f'sync_dir: "{SYNC_DIR_NAME}"\n'
+        f'sync_dir: "{sync_dir}"\n'
     )
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(yaml)
