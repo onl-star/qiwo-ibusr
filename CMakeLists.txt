@@ -100,7 +100,7 @@ install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
 install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
-install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTIONAL)
+install(PROGRAMS qiwo_sync.py DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" RENAME qiwo-rime-sync)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
 
 if(BUILD_TESTING)
