@@ -136,6 +136,16 @@ ibus-setup
 
 使用 IBus 快捷键 `Super + Space`（或你的自定义快捷键）切换输入法。
 
+首次启动时，如果 `~/.config/ibus/rime/default.custom.yaml` 不存在或为空，齐我会自动生成默认方案配置，使用 `rime_frost`：
+
+```yaml
+patch:
+  schema_list:
+    - schema: rime_frost
+```
+
+已有的非空 `default.custom.yaml` 不会被覆盖。
+
 如果列表里没有「齐我输入法」，先确认 IBus component 已安装并重启 IBus：
 
 ```bash

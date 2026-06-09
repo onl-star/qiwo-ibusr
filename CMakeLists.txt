@@ -75,6 +75,7 @@ set(IBUS_RIME_SRC
   rime_engine.c
   rime_main.c
   rime_settings.c
+  qiwo_rime_default_config.c
   qiwo_webdav_config.c
   qiwo_sync_command.c)
 add_executable(ibus-engine-rime ${IBUS_RIME_SRC})
@@ -133,4 +134,12 @@ if(BUILD_TESTING)
     "${CMAKE_CURRENT_SOURCE_DIR}")
   target_link_libraries(test_rime_settings ${LIBSECRET_LIBRARIES})
   add_test(NAME rime_settings COMMAND test_rime_settings)
+
+  add_executable(test_qiwo_rime_default_config
+    tests/test_qiwo_rime_default_config.c
+    qiwo_rime_default_config.c)
+  target_include_directories(test_qiwo_rime_default_config PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(test_qiwo_rime_default_config ${LIBSECRET_LIBRARIES})
+  add_test(NAME qiwo_rime_default_config COMMAND test_qiwo_rime_default_config)
 endif()

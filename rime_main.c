@@ -12,6 +12,7 @@
 #include <rime_api.h>
 #include "rime_engine.h"
 #include "rime_settings.h"
+#include "qiwo_rime_default_config.h"
 #include "qiwo_sync_command.h"
 #include "qiwo_webdav_config.h"
 
@@ -72,12 +73,20 @@ void ibus_rime_start(gboolean full_check) {
   if (!g_file_test(user_data_dir, G_FILE_TEST_IS_DIR)) {
     g_mkdir_with_parents(user_data_dir, 0700);
   }
+  gboolean default_config_created = FALSE;
+  g_autoptr(GError) default_config_error = NULL;
+  if (!qiwo_rime_default_config_ensure(user_data_dir, &default_config_created,
+                                       &default_config_error)) {
+    g_warning("error ensuring Qiwo default Rime schema: %s",
+              default_config_error ? default_config_error->message : "unknown");
+  }
+
   RIME_STRUCT(RimeTraits, ibus_rime_traits);
   fill_traits(&ibus_rime_traits);
   ibus_rime_traits.user_data_dir = user_data_dir;
 
   rime_api->initialize(&ibus_rime_traits);
-  if (rime_api->start_maintenance((Bool)full_check)) {
+  if (rime_api->start_maintenance((Bool)(full_check || default_config_created))) {
     // update frontend config
     rime_api->deploy_config_file("ibus_rime.yaml", "config_version");
   }
