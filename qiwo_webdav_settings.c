@@ -232,6 +232,17 @@ test_connection(GtkButton *button, gpointer user_data)
   qiwo_effective_webdav_settings_clear(&settings);
 }
 
+static void
+sync_now(GtkButton *button, gpointer user_data)
+{
+  (void)button;
+  SettingsWidgets *widgets = user_data;
+  if (validate_current_settings(widgets)) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       "Settings are ready to sync.");
+  }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -244,6 +255,8 @@ main(int argc, char **argv)
                    G_CALLBACK(save_settings), &widgets);
   g_signal_connect(widgets.test_button, "clicked",
                    G_CALLBACK(test_connection), &widgets);
+  g_signal_connect(widgets.sync_button, "clicked",
+                   G_CALLBACK(sync_now), &widgets);
 
   gtk_widget_show_all(widgets.window);
   gtk_main();
