@@ -296,6 +296,7 @@ void ibus_rime_sync_user_data(void) {
     g_free(settings.device_id);
     settings.device_id = g_strdup(g_get_host_name());
   }
+  g_debug("Qiwo WebDAV panel sync uses effective settings");
 
   // Ensure installation.yaml sync config
   qiwo_ensure_installation_yaml(user_data_dir, settings.device_id);
