@@ -112,6 +112,33 @@ load_saved_settings(SettingsWidgets *widgets)
   qiwo_webdav_settings_clear(&settings);
 }
 
+static void
+save_settings(GtkButton *button, gpointer user_data)
+{
+  (void)button;
+  SettingsWidgets *widgets = user_data;
+
+  QiwoWebDavSettings settings;
+  qiwo_webdav_settings_init(&settings);
+  settings.url = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->url_entry)));
+  settings.username = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->username_entry)));
+  settings.password = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->password_entry)));
+  settings.device_id = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->device_id_entry)));
+  settings.auto_sync_interval_minutes =
+      gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->interval_spin));
+
+  GError *error = NULL;
+  if (!qiwo_webdav_config_save(&settings, &error)) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       error ? error->message : "Unable to save settings.");
+    g_clear_error(&error);
+  } else {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label), "Settings saved.");
+  }
+
+  qiwo_webdav_settings_clear(&settings);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -120,6 +147,8 @@ main(int argc, char **argv)
   SettingsWidgets widgets = {0};
   widgets.window = build_window(&widgets);
   load_saved_settings(&widgets);
+  g_signal_connect(widgets.save_button, "clicked",
+                   G_CALLBACK(save_settings), &widgets);
 
   gtk_widget_show_all(widgets.window);
   gtk_main();
