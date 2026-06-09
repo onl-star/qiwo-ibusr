@@ -167,6 +167,18 @@ try_load_secret_password(void)
 #endif
 }
 
+static gboolean
+set_user_only_file_mode(const gchar *path, GError **error)
+{
+  if (g_chmod(path, 0600) == 0) {
+    return TRUE;
+  }
+  g_set_error(error, QIWO_WEBDAV_CONFIG_ERROR,
+              QIWO_WEBDAV_CONFIG_ERROR_SAVE_FAILED,
+              "Unable to protect config file permissions: %s", path);
+  return FALSE;
+}
+
 static void
 try_delete_secret_password(void)
 {
@@ -259,8 +271,7 @@ qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **error)
   if (!g_file_set_contents(path, data, (gssize)length, error)) {
     return FALSE;
   }
-  g_chmod(path, 0600);
-  return TRUE;
+  return set_user_only_file_mode(path, error);
 }
 
 gboolean
@@ -287,8 +298,7 @@ qiwo_webdav_config_delete_password(GError **error)
   if (!g_file_set_contents(path, data, (gssize)length, error)) {
     return FALSE;
   }
-  g_chmod(path, 0600);
-  return TRUE;
+  return set_user_only_file_mode(path, error);
 }
 
 static gboolean
