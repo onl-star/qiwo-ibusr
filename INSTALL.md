@@ -9,6 +9,8 @@
 - CMake 3.10+
 - GCC 或 Clang（支持 C11）
 - libnotify
+- GTK 3
+- libsecret（Secret Service 密码存储）
 
 ## 依赖安装
 
@@ -18,7 +20,7 @@
 sudo apt install \
   ibus libibus-1.0-dev \
   librime-dev librime-data \
-  libnotify-dev \
+  libnotify-dev libgtk-3-dev libsecret-1-dev \
   cmake gcc pkg-config \
   python3
 ```
@@ -29,7 +31,7 @@ sudo apt install \
 sudo dnf install \
   ibus ibus-devel \
   librime librime-devel rime-data \
-  libnotify-devel \
+  libnotify-devel gtk3-devel libsecret-devel \
   cmake gcc pkg-config \
   python3
 ```
@@ -40,7 +42,7 @@ sudo dnf install \
 sudo pacman -S \
   ibus \
   librime rime-data \
-  libnotify \
+  libnotify gtk3 libsecret \
   cmake gcc pkg-config \
   python
 ```
@@ -81,8 +83,9 @@ sudo make install
 安装后的文件布局：
 
 ```
-/usr/libexec/qiwo/ibus-engine-qiwo      # IBus 引擎可执行文件
-/usr/share/qiwo/qiwo_sync.py            # WebDAV 同步脚本
+/usr/libexec/qiwo/ibus-engine-rime      # IBus 引擎可执行文件
+/usr/share/qiwo/qiwo-rime-sync          # WebDAV 同步命令
+/usr/share/qiwo/qiwo-webdav-settings    # WebDAV 图形设置窗口
 /usr/share/qiwo/icons/                   # 图标文件
 /usr/share/ibus/component/qiwo.xml       # IBus 组件注册文件
 /usr/share/rime-data/ibus_rime.yaml      # 默认 UI 配置文件
@@ -112,7 +115,16 @@ ibus-setup
 
 ## 配置 WebDAV 同步
 
-WebDAV 同步通过环境变量配置。在你的 shell 配置文件（`~/.bashrc`、`~/.zshrc` 或 `~/.profile`）中添加：
+WebDAV 同步可以在图形窗口中配置。切换到齐我输入法后，在 IBus 输入法面板中点击 **「WebDAV 设置」**，填写 URL、用户名、密码、设备标识和自动同步间隔，然后点击保存。
+
+设置窗口还提供 **测试连接** 和 **立即同步**：
+
+- **测试连接** 使用当前窗口内容执行一次 dry-run，不会修改远端或本地数据。
+- **立即同步** 使用当前有效配置执行同步，并在窗口中显示结果或失败原因。
+
+密码优先保存到桌面 Secret Service（例如 GNOME Keyring、KWallet 兼容服务）。如果当前桌面没有可用的 Secret Service，会回退写入 `~/.config/qiwo/webdav.conf`，文件权限会设置为 `0600`，设置窗口会显示当前密码存储模式。
+
+环境变量仍然可用，并且优先级高于图形保存的配置。需要临时覆盖或继续使用脚本配置时，在 shell 配置文件（`~/.bashrc`、`~/.zshrc` 或 `~/.profile`）中添加：
 
 ```bash
 # WebDAV 服务器地址（必填）
@@ -124,9 +136,19 @@ export QIWO_WEBDAV_PASSWORD="password"
 
 # 设备标识（可选，默认使用系统 hostname）
 export QIWO_DEVICE_ID="linux-main"
+
+# 自动同步间隔，单位分钟；0 表示禁用
+export QIWO_AUTO_SYNC_INTERVAL_MINUTES="30"
 ```
 
 配置完成后，重新登录或执行 `source ~/.bashrc` 使环境变量生效。
+
+自动同步间隔的优先级如下：
+
+1. `QIWO_AUTO_SYNC_INTERVAL_MINUTES` 环境变量。
+2. `ibus_rime.yaml` 中的 `sync/auto_sync_interval_minutes`。
+3. 图形窗口保存的自动同步间隔。
+4. 默认禁用（`0`）。
 
 ## 使用同步
 
@@ -145,59 +167,30 @@ cd /usr/share/qiwo
 QIWO_WEBDAV_URL="https://dav.example.com/qiwo-rime-sync" \
 QIWO_WEBDAV_USERNAME="username" \
 QIWO_WEBDAV_PASSWORD="password" \
-python3 qiwo_sync.py sync \
+qiwo-rime-sync sync \
   --rime-user-dir ~/.config/ibus/rime \
   --remote-url "$QIWO_WEBDAV_URL" \
   --username "$QIWO_WEBDAV_USERNAME" \
   --password-env QIWO_WEBDAV_PASSWORD \
-  --json
+  --device-id "linux-main" \
+  --dry-run
 ```
 
 ### 定时自动同步
 
-```bash
-# 使用 crontab 设置定时同步（每 30 分钟）
-crontab -e
-# 添加：
-*/30 * * * * QIWO_WEBDAV_URL="..." QIWO_WEBDAV_USERNAME="..." QIWO_WEBDAV_PASSWORD="..." python3 /usr/share/qiwo/qiwo_sync.py sync --rime-user-dir ~/.config/ibus/rime --remote-url "$QIWO_WEBDAV_URL" --username "$QIWO_WEBDAV_USERNAME" --password-env QIWO_WEBDAV_PASSWORD
+自动同步由 IBus 引擎按分钟间隔触发。可在 **WebDAV 设置** 窗口中填写间隔，或在 `ibus_rime.yaml` 中配置：
+
+```yaml
+sync:
+  auto_sync_interval_minutes: 30
 ```
 
-或使用 systemd timer：
-
-```ini
-# ~/.config/systemd/user/qiwo-sync.service
-[Unit]
-Description=Qiwo WebDAV Sync
-
-[Service]
-Type=oneshot
-Environment=QIWO_WEBDAV_URL=https://dav.example.com/qiwo-rime-sync
-Environment=QIWO_WEBDAV_USERNAME=username
-Environment=QIWO_WEBDAV_PASSWORD=password
-ExecStart=/usr/bin/python3 /usr/share/qiwo/qiwo_sync.py sync --rime-user-dir %h/.config/ibus/rime --remote-url $QIWO_WEBDAV_URL --username $QIWO_WEBDAV_USERNAME --password-env QIWO_WEBDAV_PASSWORD
-```
-
-```ini
-# ~/.config/systemd/user/qiwo-sync.timer
-[Unit]
-Description=Qiwo WebDAV Sync Timer
-
-[Timer]
-OnCalendar=*:0/30
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```bash
-systemctl --user enable --now qiwo-sync.timer
-```
+设置为 `0` 表示禁用自动同步。
 
 ## 命令行参考
 
 ```bash
-python3 qiwo_sync.py <mode> [options]
+qiwo-rime-sync <mode> [options]
 
 模式:
   sync                    双向同步（默认）
@@ -222,7 +215,8 @@ python3 qiwo_sync.py <mode> [options]
 | Rime 共享数据 | `/usr/share/rime-data/` |
 | 同步清单 | `~/.config/ibus/rime/.qiwo-sync/manifest.json` |
 | 冲突备份 | `~/.config/ibus/rime/.qiwo-sync/backups/` |
-| WebDAV 配置 | 通过环境变量（`QIWO_WEBDAV_*`） |
+| WebDAV 图形配置 | `~/.config/qiwo/webdav.conf` |
+| WebDAV 环境覆盖 | `QIWO_WEBDAV_URL`、`QIWO_WEBDAV_USERNAME`、`QIWO_WEBDAV_PASSWORD`、`QIWO_DEVICE_ID`、`QIWO_AUTO_SYNC_INTERVAL_MINUTES` |
 
 ## 卸载
 
