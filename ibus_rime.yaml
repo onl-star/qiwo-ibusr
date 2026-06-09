@@ -3,13 +3,22 @@
 config_version: '1.0'
 
 # WebDAV sync configuration.
-# Set environment variables to enable:
+# Open "WebDAV 设置" from the IBus panel, or run:
+#   /usr/share/qiwo/qiwo-webdav-settings
+#
+# Saved graphical settings live in:
+#   ~/.config/qiwo/webdav.conf
+#
+# Environment variables override saved graphical settings:
 #   export QIWO_WEBDAV_URL="https://dav.example.com/qiwo-rime-sync"
 #   export QIWO_WEBDAV_USERNAME="username"
 #   export QIWO_WEBDAV_PASSWORD="password"
 #   export QIWO_DEVICE_ID="linux-main"
+#   export QIWO_AUTO_SYNC_INTERVAL_MINUTES="30"
 #
-# Auto-sync user dictionary (sync-user-dict mode):
+# Auto-sync user dictionary. If QIWO_AUTO_SYNC_INTERVAL_MINUTES is set,
+# it overrides this value; otherwise this value overrides the saved
+# graphical setting.
 #   sync:
 #     auto_sync_interval_minutes: 60   # 0 = disabled, minimum 1 minute
 
