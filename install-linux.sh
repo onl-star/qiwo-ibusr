@@ -126,6 +126,19 @@ else
   sudo cmake --install "$build_path"
 fi
 
+component_file="$prefix/share/ibus/component/qiwo.xml"
+engine_file="$prefix/lib/qiwo/ibus-engine-rime"
+if [[ ! -f "$component_file" ]]; then
+  echo "ERROR: IBus component was not installed: $component_file" >&2
+  echo "Installed qiwo.xml files under $prefix:" >&2
+  find "$prefix" -path '*/ibus/component/qiwo.xml' -print 2>/dev/null || true
+  exit 1
+fi
+if [[ ! -x "$engine_file" ]]; then
+  echo "ERROR: IBus engine executable was not installed or is not executable: $engine_file" >&2
+  exit 1
+fi
+
 if [[ $skip_ibus_restart -eq 0 ]]; then
   if command -v ibus >/dev/null 2>&1; then
     ibus restart || echo "WARNING: failed to restart IBus; restart it manually." >&2
@@ -142,4 +155,8 @@ Next steps:
   1. Run ibus-setup and add Qiwo/Rime if it is not already listed.
   2. Switch to the input method from your desktop input source menu.
   3. Open "WebDAV 设置" from the IBus panel to configure sync.
+
+Installed files checked:
+  $component_file
+  $engine_file
 EOF
