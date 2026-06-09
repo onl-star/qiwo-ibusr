@@ -237,6 +237,45 @@ static gboolean auto_sync_callback(gpointer user_data) {
   return G_SOURCE_CONTINUE;
 }
 
+static char* get_qiwo_settings_tool(void) {
+  static const char* paths[] = {
+#ifdef QIWO_SYNC_DIR
+    QIWO_SYNC_DIR "/qiwo-webdav-settings",
+#endif
+    "/usr/bin/qiwo-webdav-settings",
+    "/usr/local/bin/qiwo-webdav-settings",
+    "/usr/share/qiwo/qiwo-webdav-settings",
+    "/usr/local/share/qiwo/qiwo-webdav-settings",
+    NULL
+  };
+  for (int i = 0; paths[i]; i++) {
+    if (g_file_test(paths[i], G_FILE_TEST_IS_EXECUTABLE))
+      return g_strdup(paths[i]);
+  }
+  return NULL;
+}
+
+void ibus_rime_open_webdav_settings(void) {
+  char* tool = get_qiwo_settings_tool();
+  if (!tool) {
+    show_message(_("Qiwo WebDAV settings unavailable"),
+                 _("qiwo-webdav-settings was not found."));
+    return;
+  }
+
+  gchar* argv[] = { tool, NULL };
+  GError* error = NULL;
+  if (!g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH,
+                     NULL, NULL, NULL, &error)) {
+    g_warning("Qiwo WebDAV settings launch failed: %s",
+              error ? error->message : "unknown");
+    show_message(_("Qiwo WebDAV settings failed"),
+                 error ? error->message : _("Unable to launch settings."));
+    g_clear_error(&error);
+  }
+  g_free(tool);
+}
+
 void ibus_rime_sync_user_data(void) {
   char user_data_dir[PATH_MAX];
   get_ibus_rime_user_data_dir(user_data_dir);
