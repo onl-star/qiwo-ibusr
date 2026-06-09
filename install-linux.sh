@@ -83,6 +83,65 @@ if [[ $skip_setup -eq 0 ]]; then
   make -C "$script_dir" setup
 fi
 
+detect_rime_data_dir() {
+  local candidates=(
+    "$prefix/share/rime-data"
+    "$prefix/share/rime/data"
+    "$prefix/share/brise"
+    /usr/local/share/rime-data
+    /usr/local/share/rime/data
+    /usr/local/share/brise
+    /usr/share/rime-data
+    /usr/share/rime/data
+    /usr/share/brise
+  )
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  if command -v pkg-config >/dev/null 2>&1; then
+    local var value
+    for var in pkgdatadir datadir rime_data_dir; do
+      value="$(pkg-config --variable="$var" rime 2>/dev/null || true)"
+      if [[ -n "$value" && -d "$value" ]]; then
+        printf '%s\n' "$value"
+        return 0
+      fi
+    done
+  fi
+
+  if command -v dpkg-query >/dev/null 2>&1; then
+    value="$(dpkg-query -L librime-data 2>/dev/null | while IFS= read -r path; do
+      if [[ -d "$path" && -f "$path/default.yaml" ]]; then
+        printf '%s\n' "$path"
+        break
+      fi
+    done)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+if [[ -z "$rime_data_dir" ]]; then
+  rime_data_dir="$(detect_rime_data_dir || true)"
+fi
+if [[ -z "$rime_data_dir" || ! -d "$rime_data_dir" ]]; then
+  echo "ERROR: Rime data directory was not found." >&2
+  echo "Install rime data packages or rerun with --rime-data-dir PATH." >&2
+  echo "Useful diagnostics:" >&2
+  echo "  dpkg-query -L librime-data | grep -E 'default.yaml|rime-data|brise'" >&2
+  echo "  find /usr /usr/local -maxdepth 4 -name default.yaml 2>/dev/null" >&2
+  exit 1
+fi
+
 cmake_args=(
   -S "$script_dir"
   -B "$build_path"
@@ -91,11 +150,8 @@ cmake_args=(
   -DCMAKE_INSTALL_DATADIR="$prefix/share"
   -DCMAKE_INSTALL_LIBEXECDIR="$prefix/lib"
   -DBUILD_TESTING=ON
+  "-DRIME_DATA_DIR=$rime_data_dir"
 )
-
-if [[ -n "$rime_data_dir" ]]; then
-  cmake_args+=("-DRIME_DATA_DIR=$rime_data_dir")
-fi
 
 cmake "${cmake_args[@]}"
 cmake --build "$build_path"
