@@ -247,6 +247,7 @@ sync_now(GtkButton *button, gpointer user_data)
   qiwo_sync_command_result_init(&result);
   g_autofree gchar *rime_user_dir = get_rime_user_dir();
 
+  set_action_buttons_sensitive(widgets, FALSE);
   GError *error = NULL;
   gboolean ok = qiwo_sync_command_run_sync(
       rime_user_dir, &settings, FALSE, &result, &error);
@@ -258,6 +259,7 @@ sync_now(GtkButton *button, gpointer user_data)
                        error ? error->message : "Sync failed.");
     g_clear_error(&error);
   }
+  set_action_buttons_sensitive(widgets, TRUE);
 
   qiwo_sync_command_result_clear(&result);
   qiwo_effective_webdav_settings_clear(&settings);
