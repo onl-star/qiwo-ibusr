@@ -107,8 +107,9 @@ sudo make install
 ```
 /usr/lib/qiwo/ibus-engine-rime          # IBus 引擎可执行文件
 /usr/share/qiwo/qiwo-rime-sync          # WebDAV 同步命令
-/usr/share/qiwo/qiwo-webdav-settings    # WebDAV 图形设置窗口
+/usr/bin/qiwo-webdav-settings           # WebDAV 图形设置窗口
 /usr/share/qiwo/icons/                   # 图标文件
+/usr/share/applications/qiwo-webdav-settings.desktop  # 桌面菜单入口
 /usr/share/ibus/component/qiwo.xml       # IBus 组件注册文件
 /usr/share/rime-data/ibus_rime.yaml      # 默认 UI 配置文件
 ```
@@ -147,7 +148,13 @@ ibus list-engine | grep -i qiwo
 
 ## 配置 WebDAV 同步
 
-WebDAV 同步可以在图形窗口中配置。切换到齐我输入法后，在 IBus 输入法面板中点击 **「WebDAV 设置」**，填写 URL、用户名、密码、设备标识和自动同步间隔，然后点击保存。
+WebDAV 同步可以在图形窗口中配置。可以从桌面应用菜单搜索 **Qiwo WebDAV Settings** / **齐我 WebDAV 设置**，也可以直接运行：
+
+```bash
+qiwo-webdav-settings
+```
+
+切换到齐我输入法后，如果当前桌面显示 IBus 属性菜单，也可以在 IBus 输入法面板中点击 **「WebDAV 设置」**。填写 URL、用户名、密码、设备标识和自动同步间隔，然后点击保存。
 
 设置窗口还提供 **测试连接** 和 **立即同步**：
 

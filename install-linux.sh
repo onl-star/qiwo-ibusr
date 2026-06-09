@@ -128,6 +128,8 @@ fi
 
 component_file="$prefix/share/ibus/component/qiwo.xml"
 engine_file="$prefix/lib/qiwo/ibus-engine-rime"
+settings_file="$prefix/bin/qiwo-webdav-settings"
+settings_desktop_file="$prefix/share/applications/qiwo-webdav-settings.desktop"
 if [[ ! -f "$component_file" ]]; then
   echo "ERROR: IBus component was not installed: $component_file" >&2
   echo "Installed qiwo.xml files under $prefix:" >&2
@@ -136,6 +138,14 @@ if [[ ! -f "$component_file" ]]; then
 fi
 if [[ ! -x "$engine_file" ]]; then
   echo "ERROR: IBus engine executable was not installed or is not executable: $engine_file" >&2
+  exit 1
+fi
+if [[ ! -x "$settings_file" ]]; then
+  echo "ERROR: WebDAV settings executable was not installed or is not executable: $settings_file" >&2
+  exit 1
+fi
+if [[ ! -f "$settings_desktop_file" ]]; then
+  echo "ERROR: WebDAV settings desktop entry was not installed: $settings_desktop_file" >&2
   exit 1
 fi
 
@@ -159,4 +169,6 @@ Next steps:
 Installed files checked:
   $component_file
   $engine_file
+  $settings_file
+  $settings_desktop_file
 EOF

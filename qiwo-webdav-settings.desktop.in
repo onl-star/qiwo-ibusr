@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Qiwo WebDAV Settings
+Name[zh_CN]=齐我 WebDAV 设置
+Comment=Configure Qiwo WebDAV sync
+Comment[zh_CN]=配置齐我 WebDAV 同步
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/qiwo-webdav-settings
+Icon=@CMAKE_INSTALL_FULL_DATADIR@/qiwo/icons/keyboard.png
+Terminal=false
+Categories=Settings;Utility;
+StartupNotify=true

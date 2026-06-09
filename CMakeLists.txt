@@ -90,10 +90,15 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/qiwo.xml.in"
   "${CMAKE_CURRENT_BINARY_DIR}/qiwo.xml"
   @ONLY)
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/qiwo-webdav-settings.desktop.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop"
+  @ONLY)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo.xml" DESTINATION "${CMAKE_INSTALL_DATADIR}/ibus/component")
 install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
-install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo")
+install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
 install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTIONAL)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
