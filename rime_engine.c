@@ -150,6 +150,18 @@ ibus_rime_engine_init (IBusRimeEngine *rime_engine)
                            PROP_STATE_UNCHECKED,
                            NULL);
   ibus_prop_list_append(rime_engine->props, prop);
+  label = ibus_text_new_from_static_string("WebDAV 设置");
+  tips = ibus_text_new_from_static_string(_("WebDAV Settings"));
+  prop = ibus_property_new("settings",
+                           PROP_TYPE_NORMAL,
+                           label,
+                           IBUS_RIME_ICONS_DIR "/keyboard.png",
+                           tips,
+                           TRUE,
+                           TRUE,
+                           PROP_STATE_UNCHECKED,
+                           NULL);
+  ibus_prop_list_append(rime_engine->props, prop);
 }
 
 static void
