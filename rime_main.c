@@ -21,6 +21,7 @@
 #define DISTRIBUTION_NAME _("齐我输入法")
 #define DISTRIBUTION_CODE_NAME "qiwo"
 #define DISTRIBUTION_VERSION QIWO_IBUS_VERSION
+#define IBUS_COMPONENT_NAME "im.rime.Qiwo"
 
 RimeApi *rime_api = NULL;
 
@@ -111,7 +112,7 @@ static void rime_with_ibus() {
   g_object_ref_sink(factory);
 
   ibus_factory_add_engine(factory, "qiwo", IBUS_TYPE_RIME_ENGINE);
-  if (!ibus_bus_request_name(bus, "im.rime.Rime", 0)) {
+  if (!ibus_bus_request_name(bus, IBUS_COMPONENT_NAME, 0)) {
     g_error("error requesting bus name");
     exit(1);
   }
