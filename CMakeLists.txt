@@ -99,6 +99,8 @@ install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTI
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
 
 if(BUILD_TESTING)
+  enable_testing()
+
   add_executable(test_qiwo_webdav_config
     tests/test_qiwo_webdav_config.c
     qiwo_webdav_config.c)

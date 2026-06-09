@@ -101,7 +101,7 @@ cmake "${cmake_args[@]}"
 cmake --build "$build_path"
 
 if [[ $run_tests -eq 1 ]]; then
-  ctest --test-dir "$build_path" --output-on-failure
+  (cd "$build_path" && ctest --output-on-failure)
 fi
 
 can_install_without_sudo=0
@@ -117,13 +117,13 @@ elif [[ ! -e "$prefix" ]]; then
 fi
 
 if [[ $can_install_without_sudo -eq 1 ]]; then
-  cmake --install "$build_path"
+  cmake --build "$build_path" --target install
 else
   if ! command -v sudo >/dev/null 2>&1; then
     echo "ERROR: sudo is required for installing to $prefix. Re-run as root or use --prefix." >&2
     exit 1
   fi
-  sudo cmake --install "$build_path"
+  sudo cmake --build "$build_path" --target install
 fi
 
 component_file="$prefix/share/ibus/component/qiwo.xml"
