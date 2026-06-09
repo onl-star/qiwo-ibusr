@@ -1,5 +1,7 @@
 #include <gtk/gtk.h>
 
+#include "qiwo_webdav_config.h"
+
 typedef struct {
   GtkWidget *window;
   GtkWidget *url_entry;
@@ -77,6 +79,39 @@ build_window(SettingsWidgets *widgets)
   return window;
 }
 
+static void
+load_saved_settings(SettingsWidgets *widgets)
+{
+  QiwoWebDavSettings settings;
+  qiwo_webdav_settings_init(&settings);
+
+  GError *error = NULL;
+  if (!qiwo_webdav_config_load(&settings, &error)) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       error ? error->message : "Unable to load settings.");
+    g_clear_error(&error);
+    qiwo_webdav_settings_clear(&settings);
+    return;
+  }
+
+  if (settings.url) {
+    gtk_entry_set_text(GTK_ENTRY(widgets->url_entry), settings.url);
+  }
+  if (settings.username) {
+    gtk_entry_set_text(GTK_ENTRY(widgets->username_entry), settings.username);
+  }
+  if (settings.password) {
+    gtk_entry_set_text(GTK_ENTRY(widgets->password_entry), settings.password);
+  }
+  if (settings.device_id) {
+    gtk_entry_set_text(GTK_ENTRY(widgets->device_id_entry), settings.device_id);
+  }
+  gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->interval_spin),
+                            settings.auto_sync_interval_minutes);
+
+  qiwo_webdav_settings_clear(&settings);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -84,6 +119,7 @@ main(int argc, char **argv)
 
   SettingsWidgets widgets = {0};
   widgets.window = build_window(&widgets);
+  load_saved_settings(&widgets);
 
   gtk_widget_show_all(widgets.window);
   gtk_main();
