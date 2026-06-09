@@ -85,3 +85,11 @@ install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
 install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTIONAL)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
+
+if(BUILD_TESTING)
+  add_executable(test_qiwo_webdav_config
+    tests/test_qiwo_webdav_config.c
+    qiwo_webdav_config.c)
+  target_link_libraries(test_qiwo_webdav_config ${LIBSECRET_LIBRARIES})
+  add_test(NAME qiwo_webdav_config COMMAND test_qiwo_webdav_config)
+endif()
