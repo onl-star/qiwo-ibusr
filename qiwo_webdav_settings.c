@@ -1,5 +1,6 @@
 #include <gtk/gtk.h>
 
+#include "qiwo_sync_command.h"
 #include "qiwo_webdav_config.h"
 
 typedef struct {
@@ -171,15 +172,41 @@ validate_current_settings(SettingsWidgets *widgets)
   return valid;
 }
 
+static gchar *
+get_rime_user_dir(void)
+{
+  return g_build_filename(g_get_home_dir(), ".config", "ibus", "rime", NULL);
+}
+
 static void
 test_connection(GtkButton *button, gpointer user_data)
 {
   (void)button;
   SettingsWidgets *widgets = user_data;
-  if (validate_current_settings(widgets)) {
-    gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       "Settings are ready to test.");
+  if (!validate_current_settings(widgets)) {
+    return;
   }
+
+  QiwoEffectiveWebDavSettings settings;
+  collect_effective_settings(widgets, &settings);
+  QiwoSyncCommandResult result;
+  qiwo_sync_command_result_init(&result);
+  g_autofree gchar *rime_user_dir = get_rime_user_dir();
+
+  GError *error = NULL;
+  gboolean ok = qiwo_sync_command_run_sync(
+      rime_user_dir, &settings, TRUE, &result, &error);
+  if (ok) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       "Test connection succeeded.");
+  } else {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       error ? error->message : "Test connection failed.");
+    g_clear_error(&error);
+  }
+
+  qiwo_sync_command_result_clear(&result);
+  qiwo_effective_webdav_settings_clear(&settings);
 }
 
 int
