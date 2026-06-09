@@ -48,6 +48,12 @@ endif(NOT DEFINED RIME_DATA_DIR)
 message(STATUS "Precompiler macro RIME_DATA_DIR is set to \"${RIME_DATA_DIR}\"")
 add_definitions(-DRIME_DATA_DIR="${RIME_DATA_DIR}")
 
+set(QIWO_RIME_FROST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rime-frost")
+if(NOT EXISTS "${QIWO_RIME_FROST_DIR}/rime_frost.schema.yaml")
+  message(FATAL_ERROR
+    "rime-frost submodule is not initialized. Run: git submodule update --init --recursive")
+endif()
+
 set(qiwo_sync_dir "${CMAKE_INSTALL_FULL_DATADIR}/qiwo")
 add_definitions(-DQIWO_SYNC_DIR="${qiwo_sync_dir}")
 
@@ -102,6 +108,19 @@ install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
 install(PROGRAMS qiwo_sync.py DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" RENAME qiwo-rime-sync)
+install(DIRECTORY "${QIWO_RIME_FROST_DIR}/" DESTINATION "${RIME_DATA_DIR}"
+  FILES_MATCHING
+  PATTERN "*.yaml"
+  PATTERN "*.dict.yaml"
+  PATTERN "*.txt"
+  PATTERN "*.json"
+  PATTERN "*.ocd2"
+  PATTERN "*.gram"
+  PATTERN "default.yaml" EXCLUDE
+  PATTERN ".git*" EXCLUDE
+  PATTERN ".github" EXCLUDE
+  PATTERN "README.md" EXCLUDE
+  PATTERN "LICENSE" EXCLUDE)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
 
 if(BUILD_TESTING)

@@ -187,6 +187,7 @@ engine_file="$prefix/lib/qiwo/ibus-engine-rime"
 settings_file="$prefix/bin/qiwo-webdav-settings"
 settings_desktop_file="$prefix/share/applications/qiwo-webdav-settings.desktop"
 sync_file="$prefix/share/qiwo/qiwo-rime-sync"
+rime_frost_schema_file="$rime_data_dir/rime_frost.schema.yaml"
 if [[ ! -f "$component_file" ]]; then
   echo "ERROR: IBus component was not installed: $component_file" >&2
   echo "Installed qiwo.xml files under $prefix:" >&2
@@ -207,6 +208,12 @@ if [[ ! -f "$settings_desktop_file" ]]; then
 fi
 if [[ ! -x "$sync_file" ]]; then
   echo "ERROR: WebDAV sync executable was not installed or is not executable: $sync_file" >&2
+  exit 1
+fi
+if [[ ! -f "$rime_frost_schema_file" ]]; then
+  echo "ERROR: rime-frost schema was not installed: $rime_frost_schema_file" >&2
+  echo "Make sure the rime-frost submodule is initialized:" >&2
+  echo "  git submodule update --init --recursive" >&2
   exit 1
 fi
 
@@ -233,4 +240,5 @@ Installed files checked:
   $settings_file
   $settings_desktop_file
   $sync_file
+  $rime_frost_schema_file
 EOF

@@ -112,6 +112,7 @@ sudo make install
 /usr/share/applications/qiwo-webdav-settings.desktop  # 桌面菜单入口
 /usr/share/ibus/component/qiwo.xml       # IBus 组件注册文件
 /usr/share/rime-data/ibus_rime.yaml      # 默认 UI 配置文件
+/usr/share/rime-data/rime_frost.schema.yaml  # rime-frost 方案文件
 ```
 
 ## 启用输入法
@@ -136,7 +137,7 @@ ibus-setup
 
 使用 IBus 快捷键 `Super + Space`（或你的自定义快捷键）切换输入法。
 
-首次启动时，如果 `~/.config/ibus/rime/default.custom.yaml` 不存在或为空，齐我会自动生成默认方案配置，使用 `rime_frost`：
+安装会把 `rime-frost` 子模块中的方案文件安装到系统 Rime 数据目录。首次启动时，如果 `~/.config/ibus/rime/default.custom.yaml` 不存在或为空，齐我会自动生成默认方案配置，使用 `rime_frost`：
 
 ```yaml
 patch:
