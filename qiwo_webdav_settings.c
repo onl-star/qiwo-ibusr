@@ -10,6 +10,7 @@ typedef struct {
   GtkWidget *password_entry;
   GtkWidget *device_id_entry;
   GtkWidget *interval_spin;
+  GtkWidget *override_label;
   GtkWidget *status_label;
   GtkWidget *save_button;
   GtkWidget *test_button;
@@ -61,14 +62,20 @@ build_window(SettingsWidgets *widgets)
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->interval_spin), 0);
   gtk_grid_attach(GTK_GRID(grid), widgets->interval_spin, 1, 4, 2, 1);
 
+  widgets->override_label = gtk_label_new("");
+  gtk_label_set_xalign(GTK_LABEL(widgets->override_label), 0.0);
+  gtk_label_set_line_wrap(GTK_LABEL(widgets->override_label), TRUE);
+  gtk_widget_set_hexpand(widgets->override_label, TRUE);
+  gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 5, 3, 1);
+
   widgets->status_label = gtk_label_new("Configure WebDAV sync settings.");
   gtk_label_set_xalign(GTK_LABEL(widgets->status_label), 0.0);
   gtk_widget_set_hexpand(widgets->status_label, TRUE);
-  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 5, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 6, 3, 1);
 
   GtkWidget *button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
   gtk_button_box_set_layout(GTK_BUTTON_BOX(button_box), GTK_BUTTONBOX_END);
-  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 6, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 7, 3, 1);
 
   widgets->save_button = gtk_button_new_with_label("Save");
   widgets->test_button = gtk_button_new_with_label("Test Connection");
@@ -111,6 +118,41 @@ load_saved_settings(SettingsWidgets *widgets)
                             settings.auto_sync_interval_minutes);
 
   qiwo_webdav_settings_clear(&settings);
+}
+
+static void
+load_override_notice(SettingsWidgets *widgets)
+{
+  QiwoEffectiveWebDavSettings settings;
+  qiwo_effective_webdav_settings_init(&settings);
+
+  GError *error = NULL;
+  if (!qiwo_webdav_config_load_effective(&settings, &error)) {
+    gtk_label_set_text(GTK_LABEL(widgets->override_label), "");
+    g_clear_error(&error);
+    qiwo_effective_webdav_settings_clear(&settings);
+    return;
+  }
+
+  GString *message = g_string_new("");
+  if (settings.url_overridden) g_string_append(message, "URL, ");
+  if (settings.username_overridden) g_string_append(message, "username, ");
+  if (settings.password_overridden) g_string_append(message, "password, ");
+  if (settings.device_id_overridden) g_string_append(message, "device ID, ");
+  if (settings.auto_sync_interval_overridden) {
+    g_string_append(message, "auto-sync interval, ");
+  }
+
+  if (message->len > 0) {
+    g_string_truncate(message, message->len - 2);
+    g_string_prepend(message, "Environment overrides active for: ");
+    gtk_label_set_text(GTK_LABEL(widgets->override_label), message->str);
+  } else {
+    gtk_label_set_text(GTK_LABEL(widgets->override_label), "");
+  }
+
+  g_string_free(message, TRUE);
+  qiwo_effective_webdav_settings_clear(&settings);
 }
 
 static void
@@ -289,6 +331,7 @@ main(int argc, char **argv)
   SettingsWidgets widgets = {0};
   widgets.window = build_window(&widgets);
   load_saved_settings(&widgets);
+  load_override_notice(&widgets);
   g_signal_connect(widgets.save_button, "clicked",
                    G_CALLBACK(save_settings), &widgets);
   g_signal_connect(widgets.test_button, "clicked",
