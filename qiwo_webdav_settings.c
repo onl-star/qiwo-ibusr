@@ -179,6 +179,14 @@ get_rime_user_dir(void)
 }
 
 static void
+set_action_buttons_sensitive(SettingsWidgets *widgets, gboolean sensitive)
+{
+  gtk_widget_set_sensitive(widgets->save_button, sensitive);
+  gtk_widget_set_sensitive(widgets->test_button, sensitive);
+  gtk_widget_set_sensitive(widgets->sync_button, sensitive);
+}
+
+static void
 test_connection(GtkButton *button, gpointer user_data)
 {
   (void)button;
@@ -193,6 +201,7 @@ test_connection(GtkButton *button, gpointer user_data)
   qiwo_sync_command_result_init(&result);
   g_autofree gchar *rime_user_dir = get_rime_user_dir();
 
+  set_action_buttons_sensitive(widgets, FALSE);
   GError *error = NULL;
   gboolean ok = qiwo_sync_command_run_sync(
       rime_user_dir, &settings, TRUE, &result, &error);
@@ -204,6 +213,7 @@ test_connection(GtkButton *button, gpointer user_data)
                        error ? error->message : "Test connection failed.");
     g_clear_error(&error);
   }
+  set_action_buttons_sensitive(widgets, TRUE);
 
   qiwo_sync_command_result_clear(&result);
   qiwo_effective_webdav_settings_clear(&settings);
