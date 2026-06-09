@@ -163,8 +163,10 @@ validate_current_settings(SettingsWidgets *widgets)
   GError *error = NULL;
   gboolean valid = qiwo_webdav_effective_settings_validate(&settings, &error);
   if (!valid) {
-    gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       error ? error->message : "Required settings are missing.");
+    g_autofree gchar *message = g_strdup_printf(
+        "Missing setting: %s",
+        error ? error->message : "Required settings are missing.");
+    gtk_label_set_text(GTK_LABEL(widgets->status_label), message);
     g_clear_error(&error);
   }
 
@@ -208,9 +210,20 @@ test_connection(GtkButton *button, gpointer user_data)
   if (ok) {
     gtk_label_set_text(GTK_LABEL(widgets->status_label),
                        "Test connection succeeded.");
-  } else {
+  } else if (g_error_matches(error, QIWO_SYNC_COMMAND_ERROR,
+                             QIWO_SYNC_COMMAND_ERROR_TOOL_NOT_FOUND)) {
     gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       error ? error->message : "Test connection failed.");
+                       "qiwo-rime-sync was not found. Install it and try again.");
+    g_clear_error(&error);
+  } else {
+    const gchar *details =
+        result.stderr_text && result.stderr_text[0] ?
+        result.stderr_text :
+        (error ? error->message : "Test connection failed.");
+    g_autofree gchar *message = g_strdup_printf(
+        "Test connection failed: %s", details);
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       message);
     g_clear_error(&error);
   }
   set_action_buttons_sensitive(widgets, TRUE);
