@@ -10,6 +10,7 @@ typedef struct {
   GtkWidget *password_entry;
   GtkWidget *device_id_entry;
   GtkWidget *interval_spin;
+  GtkWidget *storage_label;
   GtkWidget *override_label;
   GtkWidget *status_label;
   GtkWidget *save_button;
@@ -62,20 +63,24 @@ build_window(SettingsWidgets *widgets)
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->interval_spin), 0);
   gtk_grid_attach(GTK_GRID(grid), widgets->interval_spin, 1, 4, 2, 1);
 
+  widgets->storage_label = gtk_label_new("Password storage: none");
+  gtk_label_set_xalign(GTK_LABEL(widgets->storage_label), 0.0);
+  gtk_grid_attach(GTK_GRID(grid), widgets->storage_label, 0, 5, 3, 1);
+
   widgets->override_label = gtk_label_new("");
   gtk_label_set_xalign(GTK_LABEL(widgets->override_label), 0.0);
   gtk_label_set_line_wrap(GTK_LABEL(widgets->override_label), TRUE);
   gtk_widget_set_hexpand(widgets->override_label, TRUE);
-  gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 5, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 6, 3, 1);
 
   widgets->status_label = gtk_label_new("Configure WebDAV sync settings.");
   gtk_label_set_xalign(GTK_LABEL(widgets->status_label), 0.0);
   gtk_widget_set_hexpand(widgets->status_label, TRUE);
-  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 6, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 7, 3, 1);
 
   GtkWidget *button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
   gtk_button_box_set_layout(GTK_BUTTON_BOX(button_box), GTK_BUTTONBOX_END);
-  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 7, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 8, 3, 1);
 
   widgets->save_button = gtk_button_new_with_label("Save");
   widgets->test_button = gtk_button_new_with_label("Test Connection");
@@ -85,6 +90,22 @@ build_window(SettingsWidgets *widgets)
   gtk_container_add(GTK_CONTAINER(button_box), widgets->sync_button);
 
   return window;
+}
+
+static const gchar *
+password_storage_mode_text(QiwoPasswordStorageMode mode)
+{
+  switch (mode) {
+    case QIWO_PASSWORD_STORAGE_SECRET_SERVICE:
+      return "Password storage: Secret Service";
+    case QIWO_PASSWORD_STORAGE_LOCAL_FILE:
+      return "Password storage: protected local file";
+    case QIWO_PASSWORD_STORAGE_UNAVAILABLE:
+      return "Password storage: unavailable";
+    case QIWO_PASSWORD_STORAGE_NONE:
+    default:
+      return "Password storage: none";
+  }
 }
 
 static void
@@ -116,6 +137,8 @@ load_saved_settings(SettingsWidgets *widgets)
   }
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->interval_spin),
                             settings.auto_sync_interval_minutes);
+  gtk_label_set_text(GTK_LABEL(widgets->storage_label),
+                     password_storage_mode_text(settings.password_storage_mode));
 
   qiwo_webdav_settings_clear(&settings);
 }
@@ -176,6 +199,7 @@ save_settings(GtkButton *button, gpointer user_data)
                        error ? error->message : "Unable to save settings.");
     g_clear_error(&error);
   } else {
+    load_saved_settings(widgets);
     gtk_label_set_text(GTK_LABEL(widgets->status_label), "Settings saved.");
   }
 
