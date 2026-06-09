@@ -177,6 +177,53 @@ test_delete_password_removes_local_fallback(void)
   teardown_config_home();
 }
 
+static void
+test_effective_auto_sync_interval_lookup(void)
+{
+  setup_config_home();
+
+  QiwoWebDavSettings saved;
+  qiwo_webdav_settings_init(&saved);
+  saved.url = g_strdup("https://saved.example.com/dav");
+  saved.username = g_strdup("saved-user");
+  saved.password = g_strdup("saved-password");
+  saved.device_id = g_strdup("saved-device");
+  saved.auto_sync_interval_minutes = 25;
+
+  g_autoptr(GError) error = NULL;
+  g_assert_true(qiwo_webdav_config_save(&saved, &error));
+  g_assert_no_error(error);
+
+  gboolean overridden = TRUE;
+  g_assert_cmpuint(
+      qiwo_webdav_config_get_effective_auto_sync_interval_minutes(&overridden,
+                                                                  &error),
+      ==, 25);
+  g_assert_no_error(error);
+  g_assert_false(overridden);
+
+  g_setenv("QIWO_AUTO_SYNC_INTERVAL_MINUTES", "15", TRUE);
+  overridden = FALSE;
+  g_assert_cmpuint(
+      qiwo_webdav_config_get_effective_auto_sync_interval_minutes(&overridden,
+                                                                  &error),
+      ==, 15);
+  g_assert_no_error(error);
+  g_assert_true(overridden);
+
+  g_setenv("QIWO_AUTO_SYNC_INTERVAL_MINUTES", "invalid", TRUE);
+  overridden = TRUE;
+  g_assert_cmpuint(
+      qiwo_webdav_config_get_effective_auto_sync_interval_minutes(&overridden,
+                                                                  &error),
+      ==, 25);
+  g_assert_no_error(error);
+  g_assert_false(overridden);
+
+  qiwo_webdav_settings_clear(&saved);
+  teardown_config_home();
+}
+
 int
 main(int argc, char **argv)
 {
@@ -191,6 +238,8 @@ main(int argc, char **argv)
                   test_fallback_file_mode_is_user_only);
   g_test_add_func("/qiwo/webdav-config/delete-password-removes-local-fallback",
                   test_delete_password_removes_local_fallback);
+  g_test_add_func("/qiwo/webdav-config/effective-auto-sync-interval-lookup",
+                  test_effective_auto_sync_interval_lookup);
 
   return g_test_run();
 }

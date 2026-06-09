@@ -66,6 +66,9 @@ gboolean qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **er
 gboolean qiwo_webdav_config_delete_password(GError **error);
 gboolean qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
                                            GError **error);
+guint qiwo_webdav_config_get_effective_auto_sync_interval_minutes(
+    gboolean *overridden,
+    GError **error);
 gboolean qiwo_webdav_effective_settings_validate(
     const QiwoEffectiveWebDavSettings *settings,
     GError **error);

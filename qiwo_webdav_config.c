@@ -379,6 +379,26 @@ qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
   return TRUE;
 }
 
+guint
+qiwo_webdav_config_get_effective_auto_sync_interval_minutes(gboolean *overridden,
+                                                            GError **error)
+{
+  QiwoEffectiveWebDavSettings effective;
+  qiwo_effective_webdav_settings_init(&effective);
+  if (!qiwo_webdav_config_load_effective(&effective, error)) {
+    if (overridden) *overridden = FALSE;
+    qiwo_effective_webdav_settings_clear(&effective);
+    return 0;
+  }
+
+  guint interval_minutes = effective.auto_sync_interval_minutes;
+  if (overridden) {
+    *overridden = effective.auto_sync_interval_overridden;
+  }
+  qiwo_effective_webdav_settings_clear(&effective);
+  return interval_minutes;
+}
+
 gboolean
 qiwo_webdav_effective_settings_validate(const QiwoEffectiveWebDavSettings *settings,
                                         GError **error)
