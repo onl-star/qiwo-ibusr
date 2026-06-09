@@ -34,6 +34,7 @@ pkg_check_modules(LIBSECRET REQUIRED libsecret-1)
 if(LIBSECRET_FOUND)
   include_directories(${LIBSECRET_INCLUDE_DIRS})
   link_directories(${LIBSECRET_LIBRARY_DIRS})
+  add_definitions(-DQIWO_WITH_LIBSECRET)
 endif(LIBSECRET_FOUND)
 
 find_package(Rime REQUIRED)

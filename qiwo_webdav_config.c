@@ -3,12 +3,29 @@
 #include <glib/gstdio.h>
 #include <string.h>
 
+#ifdef QIWO_WITH_LIBSECRET
+#include <libsecret/secret.h>
+#endif
+
 #define QIWO_CONFIG_DIR "qiwo"
 #define QIWO_CONFIG_FILE "webdav.conf"
 #define QIWO_CONFIG_GROUP "webdav"
+#define QIWO_SECRET_ATTRIBUTE_SERVICE "service"
+#define QIWO_SECRET_ATTRIBUTE_VALUE "qiwo-webdav"
 
 static gboolean secret_service_available_override_set = FALSE;
 static gboolean secret_service_available_override = TRUE;
+
+#ifdef QIWO_WITH_LIBSECRET
+static const SecretSchema qiwo_webdav_secret_schema = {
+  "im.qiwo.webdav",
+  SECRET_SCHEMA_NONE,
+  {
+    { QIWO_SECRET_ATTRIBUTE_SERVICE, SECRET_SCHEMA_ATTRIBUTE_STRING },
+    { NULL, 0 },
+  }
+};
+#endif
 
 GQuark
 qiwo_webdav_config_error_quark(void)
@@ -94,6 +111,78 @@ get_optional_string(GKeyFile *key_file,
   return value;
 }
 
+static gboolean
+secret_service_allowed(void)
+{
+  if (secret_service_available_override_set) {
+    return secret_service_available_override;
+  }
+#ifdef QIWO_WITH_LIBSECRET
+  return TRUE;
+#else
+  return FALSE;
+#endif
+}
+
+static gboolean
+try_store_secret_password(const gchar *password)
+{
+  if (!password || !password[0] || !secret_service_allowed()) {
+    return FALSE;
+  }
+#ifdef QIWO_WITH_LIBSECRET
+  g_autoptr(GError) error = NULL;
+  return secret_password_store_sync(
+      &qiwo_webdav_secret_schema,
+      SECRET_COLLECTION_DEFAULT,
+      "Qiwo WebDAV password",
+      password,
+      NULL,
+      &error,
+      QIWO_SECRET_ATTRIBUTE_SERVICE,
+      QIWO_SECRET_ATTRIBUTE_VALUE,
+      NULL);
+#else
+  return FALSE;
+#endif
+}
+
+static gchar *
+try_load_secret_password(void)
+{
+  if (!secret_service_allowed()) {
+    return NULL;
+  }
+#ifdef QIWO_WITH_LIBSECRET
+  g_autoptr(GError) error = NULL;
+  return secret_password_lookup_sync(
+      &qiwo_webdav_secret_schema,
+      NULL,
+      &error,
+      QIWO_SECRET_ATTRIBUTE_SERVICE,
+      QIWO_SECRET_ATTRIBUTE_VALUE,
+      NULL);
+#else
+  return NULL;
+#endif
+}
+
+static void
+try_delete_secret_password(void)
+{
+#ifdef QIWO_WITH_LIBSECRET
+  if (!secret_service_allowed()) return;
+  g_autoptr(GError) error = NULL;
+  secret_password_clear_sync(
+      &qiwo_webdav_secret_schema,
+      NULL,
+      &error,
+      QIWO_SECRET_ATTRIBUTE_SERVICE,
+      QIWO_SECRET_ATTRIBUTE_VALUE,
+      NULL);
+#endif
+}
+
 gboolean
 qiwo_webdav_config_load(QiwoWebDavSettings *settings, GError **error)
 {
@@ -117,10 +206,18 @@ qiwo_webdav_config_load(QiwoWebDavSettings *settings, GError **error)
   settings->url = get_optional_string(key_file, "url");
   settings->username = get_optional_string(key_file, "username");
   settings->device_id = get_optional_string(key_file, "device_id");
+  settings->password = get_optional_string(key_file, "password");
   settings->auto_sync_interval_minutes =
       g_key_file_get_uint64(key_file, QIWO_CONFIG_GROUP,
                             "auto_sync_interval_minutes", NULL);
-  settings->password_storage_mode = QIWO_PASSWORD_STORAGE_NONE;
+  if (settings->password && settings->password[0]) {
+    settings->password_storage_mode = QIWO_PASSWORD_STORAGE_LOCAL_FILE;
+  } else {
+    settings->password = try_load_secret_password();
+    settings->password_storage_mode =
+        settings->password ? QIWO_PASSWORD_STORAGE_SECRET_SERVICE :
+        QIWO_PASSWORD_STORAGE_NONE;
+  }
   return TRUE;
 }
 
@@ -142,6 +239,15 @@ qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **error)
   set_string_if_present(key_file, "url", settings->url);
   set_string_if_present(key_file, "username", settings->username);
   set_string_if_present(key_file, "device_id", settings->device_id);
+  gboolean stored_in_secret = try_store_secret_password(settings->password);
+  if (settings->password && settings->password[0] && !stored_in_secret) {
+    g_key_file_set_string(key_file, QIWO_CONFIG_GROUP, "password", settings->password);
+    g_key_file_set_string(key_file, QIWO_CONFIG_GROUP,
+                          "password_storage_mode", "local-file");
+  } else if (stored_in_secret) {
+    g_key_file_set_string(key_file, QIWO_CONFIG_GROUP,
+                          "password_storage_mode", "secret-service");
+  }
   g_key_file_set_uint64(key_file, QIWO_CONFIG_GROUP,
                         "auto_sync_interval_minutes",
                         settings->auto_sync_interval_minutes);
@@ -160,7 +266,28 @@ qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **error)
 gboolean
 qiwo_webdav_config_delete_password(GError **error)
 {
-  (void)error;
+  try_delete_secret_password();
+
+  g_autofree gchar *path = qiwo_webdav_config_get_file_path();
+  if (!g_file_test(path, G_FILE_TEST_EXISTS)) {
+    return TRUE;
+  }
+
+  g_autoptr(GKeyFile) key_file = g_key_file_new();
+  if (!g_key_file_load_from_file(key_file, path, G_KEY_FILE_NONE, error)) {
+    return FALSE;
+  }
+  g_key_file_remove_key(key_file, QIWO_CONFIG_GROUP, "password", NULL);
+  g_key_file_remove_key(key_file, QIWO_CONFIG_GROUP,
+                        "password_storage_mode", NULL);
+
+  gsize length = 0;
+  g_autofree gchar *data = g_key_file_to_data(key_file, &length, error);
+  if (!data) return FALSE;
+  if (!g_file_set_contents(path, data, (gssize)length, error)) {
+    return FALSE;
+  }
+  g_chmod(path, 0600);
   return TRUE;
 }
 
