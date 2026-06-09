@@ -252,11 +252,27 @@ sync_now(GtkButton *button, gpointer user_data)
   gboolean ok = qiwo_sync_command_run_sync(
       rime_user_dir, &settings, FALSE, &result, &error);
   if (ok) {
+    if (result.stdout_text && result.stdout_text[0]) {
+      g_autofree gchar *summary = g_strdup(result.stdout_text);
+      g_strstrip(summary);
+      g_autofree gchar *message = g_strdup_printf("Sync completed: %s", summary);
+      gtk_label_set_text(GTK_LABEL(widgets->status_label), message);
+    } else {
+      gtk_label_set_text(GTK_LABEL(widgets->status_label), "Sync completed.");
+    }
+  } else if (g_error_matches(error, QIWO_SYNC_COMMAND_ERROR,
+                             QIWO_SYNC_COMMAND_ERROR_TOOL_NOT_FOUND)) {
     gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       "Sync completed.");
+                       "qiwo-rime-sync was not found. Install it and try again.");
+    g_clear_error(&error);
   } else {
+    const gchar *details =
+        result.stderr_text && result.stderr_text[0] ?
+        result.stderr_text :
+        (error ? error->message : "Sync failed.");
+    g_autofree gchar *message = g_strdup_printf("Sync failed: %s", details);
     gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       error ? error->message : "Sync failed.");
+                       message);
     g_clear_error(&error);
   }
   set_action_buttons_sensitive(widgets, TRUE);
