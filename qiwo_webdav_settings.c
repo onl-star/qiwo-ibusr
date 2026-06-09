@@ -237,10 +237,30 @@ sync_now(GtkButton *button, gpointer user_data)
 {
   (void)button;
   SettingsWidgets *widgets = user_data;
-  if (validate_current_settings(widgets)) {
-    gtk_label_set_text(GTK_LABEL(widgets->status_label),
-                       "Settings are ready to sync.");
+  if (!validate_current_settings(widgets)) {
+    return;
   }
+
+  QiwoEffectiveWebDavSettings settings;
+  collect_effective_settings(widgets, &settings);
+  QiwoSyncCommandResult result;
+  qiwo_sync_command_result_init(&result);
+  g_autofree gchar *rime_user_dir = get_rime_user_dir();
+
+  GError *error = NULL;
+  gboolean ok = qiwo_sync_command_run_sync(
+      rime_user_dir, &settings, FALSE, &result, &error);
+  if (ok) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       "Sync completed.");
+  } else {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       error ? error->message : "Sync failed.");
+    g_clear_error(&error);
+  }
+
+  qiwo_sync_command_result_clear(&result);
+  qiwo_effective_webdav_settings_clear(&settings);
 }
 
 int
