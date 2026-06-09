@@ -105,7 +105,7 @@ sudo make install
 安装后的文件布局：
 
 ```
-/usr/libexec/qiwo/ibus-engine-rime      # IBus 引擎可执行文件
+/usr/lib/qiwo/ibus-engine-rime          # IBus 引擎可执行文件
 /usr/share/qiwo/qiwo-rime-sync          # WebDAV 同步命令
 /usr/share/qiwo/qiwo-webdav-settings    # WebDAV 图形设置窗口
 /usr/share/qiwo/icons/                   # 图标文件
@@ -134,6 +134,16 @@ ibus-setup
 ### 3. 切换到齐我输入法
 
 使用 IBus 快捷键 `Super + Space`（或你的自定义快捷键）切换输入法。
+
+如果列表里没有「齐我输入法」，先确认 IBus component 已安装并重启 IBus：
+
+```bash
+ls /usr/share/ibus/component/qiwo.xml
+ibus restart
+ibus list-engine | grep -i qiwo
+```
+
+如果使用 `--prefix /usr/local` 安装，component 路径通常是 `/usr/local/share/ibus/component/qiwo.xml`；部分发行版的 IBus 默认只扫描 `/usr/share/ibus/component`，这种情况下请安装到 `/usr`。
 
 ## 配置 WebDAV 同步
 
