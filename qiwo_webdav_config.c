@@ -329,21 +329,21 @@ qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
 
   copy_saved_to_effective(&saved, settings);
 
-  const gchar *value = g_getenv("QIWO_WEBDAV_URL");
+  const gchar *value = g_getenv(QIWO_WEBDAV_ENV_URL);
   if (value && value[0]) {
     g_free(settings->url);
     settings->url = g_strdup(value);
     settings->url_overridden = TRUE;
   }
 
-  value = g_getenv("QIWO_WEBDAV_USERNAME");
+  value = g_getenv(QIWO_WEBDAV_ENV_USERNAME);
   if (value && value[0]) {
     g_free(settings->username);
     settings->username = g_strdup(value);
     settings->username_overridden = TRUE;
   }
 
-  value = g_getenv("QIWO_WEBDAV_PASSWORD");
+  value = g_getenv(QIWO_WEBDAV_ENV_PASSWORD);
   if (value && value[0]) {
     g_free(settings->password);
     settings->password = g_strdup(value);
@@ -351,14 +351,14 @@ qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
     settings->password_storage_mode = QIWO_PASSWORD_STORAGE_NONE;
   }
 
-  value = g_getenv("QIWO_DEVICE_ID");
+  value = g_getenv(QIWO_WEBDAV_ENV_DEVICE_ID);
   if (value && value[0]) {
     g_free(settings->device_id);
     settings->device_id = g_strdup(value);
     settings->device_id_overridden = TRUE;
   }
 
-  value = g_getenv("QIWO_AUTO_SYNC_INTERVAL_MINUTES");
+  value = g_getenv(QIWO_WEBDAV_ENV_AUTO_SYNC_INTERVAL);
   guint interval = 0;
   if (env_to_uint(value, &interval)) {
     settings->auto_sync_interval_minutes = interval;

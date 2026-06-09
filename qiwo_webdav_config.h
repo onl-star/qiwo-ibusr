@@ -23,6 +23,12 @@ typedef enum {
 
 #define QIWO_WEBDAV_CONFIG_ERROR (qiwo_webdav_config_error_quark())
 
+#define QIWO_WEBDAV_ENV_URL "QIWO_WEBDAV_URL"
+#define QIWO_WEBDAV_ENV_USERNAME "QIWO_WEBDAV_USERNAME"
+#define QIWO_WEBDAV_ENV_PASSWORD "QIWO_WEBDAV_PASSWORD"
+#define QIWO_WEBDAV_ENV_DEVICE_ID "QIWO_DEVICE_ID"
+#define QIWO_WEBDAV_ENV_AUTO_SYNC_INTERVAL "QIWO_AUTO_SYNC_INTERVAL_MINUTES"
+
 typedef struct {
   gchar *url;
   gchar *username;
