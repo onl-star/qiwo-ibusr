@@ -66,6 +66,28 @@ git submodule update --init --recursive
 
 ## 编译
 
+推荐直接使用一键安装脚本：
+
+```bash
+cd qiwo-ibusr
+./install-linux.sh
+```
+
+脚本会自动安装系统依赖、配置 CMake、编译、安装并重启 IBus。常用参数：
+
+```bash
+# 指定安装前缀
+./install-linux.sh --prefix /usr/local
+
+# CMake 找不到 Rime 数据目录时手动指定
+./install-linux.sh --rime-data-dir /usr/share/rime-data
+
+# 安装前运行 CTest
+./install-linux.sh --run-tests
+```
+
+也可以手动编译安装：
+
 ```bash
 cd qiwo-ibusr
 
