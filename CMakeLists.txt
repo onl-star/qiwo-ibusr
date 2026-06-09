@@ -111,4 +111,13 @@ if(BUILD_TESTING)
     qiwo_webdav_config.c)
   target_link_libraries(test_qiwo_sync_command ${LIBSECRET_LIBRARIES})
   add_test(NAME qiwo_sync_command COMMAND test_qiwo_sync_command)
+
+  add_executable(test_rime_settings
+    tests/test_rime_settings.c
+    rime_settings.c
+    qiwo_webdav_config.c)
+  target_include_directories(test_rime_settings BEFORE PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/stubs")
+  target_link_libraries(test_rime_settings ${LIBSECRET_LIBRARIES})
+  add_test(NAME rime_settings COMMAND test_rime_settings)
 endif()

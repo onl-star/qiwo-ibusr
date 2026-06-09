@@ -1,4 +1,5 @@
 #include "rime_config.h"
+#include "qiwo_webdav_config.h"
 #include "rime_settings.h"
 #include <rime_api.h>
 #include <string.h>
@@ -23,6 +24,18 @@ static struct IBusRimeSettings ibus_rime_settings_default = {
 };
 
 struct IBusRimeSettings g_ibus_rime_settings;
+
+static guint
+interval_minutes_to_seconds(guint interval_minutes)
+{
+  if (interval_minutes == 0) {
+    return 0;
+  }
+  if (interval_minutes > G_MAXUINT / 60) {
+    return G_MAXUINT;
+  }
+  return interval_minutes * 60;
+}
 
 static void
 select_color_scheme(struct IBusRimeSettings* settings,
@@ -91,10 +104,27 @@ ibus_rime_load_settings()
 
   // 读取自动同步词库间隔（分钟，0 = 禁用）
   int interval_minutes = 0;
+  gboolean rime_interval_configured = FALSE;
   if (rime_api->config_get_int(&config, "sync/auto_sync_interval_minutes", &interval_minutes)) {
+    rime_interval_configured = TRUE;
     g_ibus_rime_settings.auto_sync_interval_seconds =
-      (guint)(interval_minutes > 0 ? interval_minutes * 60 : 0);
+      interval_minutes > 0 ? interval_minutes_to_seconds((guint)interval_minutes) : 0;
   }
 
   rime_api->config_close(&config);
+
+  gboolean webdav_interval_overridden = FALSE;
+  g_autoptr(GError) error = NULL;
+  guint webdav_interval_minutes =
+      qiwo_webdav_config_get_effective_auto_sync_interval_minutes(
+          &webdav_interval_overridden, &error);
+  if (error) {
+    g_warning("error loading WebDAV auto-sync interval: %s", error->message);
+    return;
+  }
+  if (webdav_interval_overridden ||
+      (!rime_interval_configured && webdav_interval_minutes > 0)) {
+    g_ibus_rime_settings.auto_sync_interval_seconds =
+      interval_minutes_to_seconds(webdav_interval_minutes);
+  }
 }
