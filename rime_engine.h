@@ -9,5 +9,6 @@
 GType ibus_rime_engine_get_type();
 
 void ibus_rime_sync_user_data(void);
+void ibus_rime_open_webdav_settings(void);
 
 #endif
