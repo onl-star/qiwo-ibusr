@@ -12,6 +12,8 @@
 #include <rime_api.h>
 #include "rime_engine.h"
 #include "rime_settings.h"
+#include "qiwo_sync_command.h"
+#include "qiwo_webdav_config.h"
 
 // TODO:
 #define _(x) (x)
@@ -156,22 +158,6 @@ static void sigterm_cb(int sig) {
   ibus_quit();
 }
 
-static char* get_qiwo_sync_tool(void) {
-  static const char* paths[] = {
-    QIWO_SYNC_DIR "/qiwo-rime-sync",
-    "/usr/bin/qiwo-rime-sync",
-    "/usr/local/bin/qiwo-rime-sync",
-    "/usr/share/qiwo/qiwo-rime-sync",
-    "/usr/local/share/qiwo/qiwo-rime-sync",
-    NULL
-  };
-  for (int i = 0; paths[i]; i++) {
-    if (g_file_test(paths[i], G_FILE_TEST_IS_EXECUTABLE))
-      return g_strdup(paths[i]);
-  }
-  return NULL;
-}
-
 static void qiwo_ensure_installation_yaml(const char* user_data_dir,
                                           const char* device_id) {
   char file_path[PATH_MAX];
@@ -252,71 +238,53 @@ static gboolean auto_sync_callback(gpointer user_data) {
 }
 
 void ibus_rime_sync_user_data(void) {
-  char* tool = get_qiwo_sync_tool();
-  if (!tool) return;
-
   char user_data_dir[PATH_MAX];
   get_ibus_rime_user_data_dir(user_data_dir);
 
+  QiwoEffectiveWebDavSettings settings;
+  qiwo_effective_webdav_settings_init(&settings);
+  GError* error = NULL;
+  if (!qiwo_webdav_config_load_effective(&settings, &error)) {
+    g_warning("Qiwo WebDAV config load failed: %s",
+              error ? error->message : "unknown");
+    show_message(_("Qiwo WebDAV sync failed"),
+                 error ? error->message : _("Unable to load settings."));
+    g_clear_error(&error);
+    qiwo_effective_webdav_settings_clear(&settings);
+    return;
+  }
+  if (!settings.device_id || !settings.device_id[0]) {
+    g_free(settings.device_id);
+    settings.device_id = g_strdup(g_get_host_name());
+  }
+
   // Ensure installation.yaml sync config
-  const char* device_id = g_getenv("QIWO_DEVICE_ID");
-  if (!device_id) device_id = g_get_host_name();
-  qiwo_ensure_installation_yaml(user_data_dir, device_id);
+  qiwo_ensure_installation_yaml(user_data_dir, settings.device_id);
 
   if (rime_api) {
     rime_api->sync_user_data();
   }
 
-  GString* cmd = g_string_new("\"");
-  g_string_append(cmd, tool);
-  g_string_append(cmd, "\" sync --frontend ibus-rime --rime-user-dir \"");
-  g_string_append(cmd, user_data_dir);
-  g_string_append(cmd, "\"");
+  QiwoSyncCommandResult result;
+  qiwo_sync_command_result_init(&result);
+  gboolean ok = qiwo_sync_command_run_sync(
+      user_data_dir, &settings, FALSE, &result, &error);
 
-  const char* url = g_getenv("QIWO_WEBDAV_URL");
-  const char* username = g_getenv("QIWO_WEBDAV_USERNAME");
-  const char* password_env = g_getenv("QIWO_WEBDAV_PASSWORD");
-
-  if (url && url[0]) {
-    g_string_append(cmd, " --remote-url \"");
-    g_string_append(cmd, url);
-    g_string_append(cmd, "\"");
-  }
-  if (username && username[0]) {
-    g_string_append(cmd, " --username \"");
-    g_string_append(cmd, username);
-    g_string_append(cmd, "\"");
-  }
-  if (password_env) {
-    g_string_append(cmd, " --password-env QIWO_WEBDAV_PASSWORD");
-  }
-  if (device_id && device_id[0]) {
-    g_string_append(cmd, " --device-id \"");
-    g_string_append(cmd, device_id);
-    g_string_append(cmd, "\"");
-  }
-
-  int exit_code = 0;
-  gchar* output = NULL;
-  gchar* error_output = NULL;
-  GError* error = NULL;
-
-  gboolean ok = g_spawn_command_line_sync(
-      cmd->str, &output, &error_output, &exit_code, &error);
-
-  if (!ok || exit_code != 0) {
-    g_warning("Qiwo WebDAV sync failed: %s (exit=%d)",
-              error ? error->message : (error_output ? error_output : "unknown"),
-              exit_code);
+  if (!ok) {
+    const gchar* details = error ? error->message :
+        (result.stderr_text ? result.stderr_text : _("Unknown error."));
+    g_warning("Qiwo WebDAV sync failed: %s", details);
+    show_message(_("Qiwo WebDAV sync failed"), details);
   } else if (rime_api) {
     rime_api->sync_user_data();
+    show_message(_("Qiwo WebDAV sync complete"),
+                 result.stdout_text && result.stdout_text[0] ?
+                 result.stdout_text : _("Sync completed."));
   }
 
-  g_free(output);
-  g_free(error_output);
   g_clear_error(&error);
-  g_string_free(cmd, TRUE);
-  g_free(tool);
+  qiwo_sync_command_result_clear(&result);
+  qiwo_effective_webdav_settings_clear(&settings);
 }
 
 int main(gint argc, gchar** argv) {
