@@ -147,6 +147,36 @@ test_fallback_file_mode_is_user_only(void)
   teardown_config_home();
 }
 
+static void
+test_delete_password_removes_local_fallback(void)
+{
+  setup_config_home();
+
+  QiwoWebDavSettings saved;
+  qiwo_webdav_settings_init(&saved);
+  saved.url = g_strdup("https://saved.example.com/dav");
+  saved.username = g_strdup("saved-user");
+  saved.password = g_strdup("saved-password");
+  saved.device_id = g_strdup("saved-device");
+
+  g_autoptr(GError) error = NULL;
+  g_assert_true(qiwo_webdav_config_save(&saved, &error));
+  g_assert_no_error(error);
+  g_assert_true(qiwo_webdav_config_delete_password(&error));
+  g_assert_no_error(error);
+
+  QiwoWebDavSettings loaded;
+  qiwo_webdav_settings_init(&loaded);
+  g_assert_true(qiwo_webdav_config_load(&loaded, &error));
+  g_assert_no_error(error);
+  g_assert_null(loaded.password);
+  g_assert_cmpint(loaded.password_storage_mode, ==, QIWO_PASSWORD_STORAGE_NONE);
+
+  qiwo_webdav_settings_clear(&loaded);
+  qiwo_webdav_settings_clear(&saved);
+  teardown_config_home();
+}
+
 int
 main(int argc, char **argv)
 {
@@ -159,6 +189,8 @@ main(int argc, char **argv)
                   test_required_field_validation);
   g_test_add_func("/qiwo/webdav-config/fallback-file-mode-is-user-only",
                   test_fallback_file_mode_is_user_only);
+  g_test_add_func("/qiwo/webdav-config/delete-password-removes-local-fallback",
+                  test_delete_password_removes_local_fallback);
 
   return g_test_run();
 }
