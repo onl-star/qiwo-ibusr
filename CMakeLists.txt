@@ -22,6 +22,18 @@ if (LIBNOTIFY_FOUND)
   link_directories(${LIBNOTIFY_LIBRARY_DIRS})
 endif(LIBNOTIFY_FOUND)
 
+pkg_check_modules(GTK REQUIRED gtk+-3.0)
+if(GTK_FOUND)
+  include_directories(${GTK_INCLUDE_DIRS})
+  link_directories(${GTK_LIBRARY_DIRS})
+endif(GTK_FOUND)
+
+pkg_check_modules(LIBSECRET REQUIRED libsecret-1)
+if(LIBSECRET_FOUND)
+  include_directories(${LIBSECRET_INCLUDE_DIRS})
+  link_directories(${LIBSECRET_LIBRARY_DIRS})
+endif(LIBSECRET_FOUND)
+
 find_package(Rime REQUIRED)
 if(Rime_FOUND)
   include_directories(${Rime_INCLUDE_DIR})
