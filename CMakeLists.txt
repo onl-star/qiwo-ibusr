@@ -92,4 +92,11 @@ if(BUILD_TESTING)
     qiwo_webdav_config.c)
   target_link_libraries(test_qiwo_webdav_config ${LIBSECRET_LIBRARIES})
   add_test(NAME qiwo_webdav_config COMMAND test_qiwo_webdav_config)
+
+  add_executable(test_qiwo_sync_command
+    tests/test_qiwo_sync_command.c
+    qiwo_sync_command.c
+    qiwo_webdav_config.c)
+  target_link_libraries(test_qiwo_sync_command ${LIBSECRET_LIBRARIES})
+  add_test(NAME qiwo_sync_command COMMAND test_qiwo_sync_command)
 endif()
