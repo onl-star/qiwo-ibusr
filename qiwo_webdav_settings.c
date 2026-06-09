@@ -139,6 +139,49 @@ save_settings(GtkButton *button, gpointer user_data)
   qiwo_webdav_settings_clear(&settings);
 }
 
+static void
+collect_effective_settings(SettingsWidgets *widgets,
+                           QiwoEffectiveWebDavSettings *settings)
+{
+  qiwo_effective_webdav_settings_init(settings);
+  settings->url = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->url_entry)));
+  settings->username = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->username_entry)));
+  settings->password = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->password_entry)));
+  settings->device_id = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->device_id_entry)));
+  settings->auto_sync_interval_minutes =
+      gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->interval_spin));
+  settings->password_storage_mode = QIWO_PASSWORD_STORAGE_LOCAL_FILE;
+}
+
+static gboolean
+validate_current_settings(SettingsWidgets *widgets)
+{
+  QiwoEffectiveWebDavSettings settings;
+  collect_effective_settings(widgets, &settings);
+
+  GError *error = NULL;
+  gboolean valid = qiwo_webdav_effective_settings_validate(&settings, &error);
+  if (!valid) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       error ? error->message : "Required settings are missing.");
+    g_clear_error(&error);
+  }
+
+  qiwo_effective_webdav_settings_clear(&settings);
+  return valid;
+}
+
+static void
+test_connection(GtkButton *button, gpointer user_data)
+{
+  (void)button;
+  SettingsWidgets *widgets = user_data;
+  if (validate_current_settings(widgets)) {
+    gtk_label_set_text(GTK_LABEL(widgets->status_label),
+                       "Settings are ready to test.");
+  }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -149,6 +192,8 @@ main(int argc, char **argv)
   load_saved_settings(&widgets);
   g_signal_connect(widgets.save_button, "clicked",
                    G_CALLBACK(save_settings), &widgets);
+  g_signal_connect(widgets.test_button, "clicked",
+                   G_CALLBACK(test_connection), &widgets);
 
   gtk_widget_show_all(widgets.window);
   gtk_main();
