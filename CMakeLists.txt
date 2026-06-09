@@ -71,9 +71,20 @@ if(BUILD_STATIC)
       libglog.a libleveldb.a libmarisa.a libopencc.a libyaml-cpp.a)
 endif(BUILD_STATIC)
 
-aux_source_directory(. IBUS_RIME_SRC)
+set(IBUS_RIME_SRC
+  rime_engine.c
+  rime_main.c
+  rime_settings.c
+  qiwo_webdav_config.c
+  qiwo_sync_command.c)
 add_executable(ibus-engine-rime ${IBUS_RIME_SRC})
-target_link_libraries(ibus-engine-rime ${IBus_LIBRARIES} ${LIBNOTIFY_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS})
+target_link_libraries(ibus-engine-rime ${IBus_LIBRARIES} ${LIBNOTIFY_LIBRARIES} ${LIBSECRET_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS})
+
+add_executable(qiwo-webdav-settings
+  qiwo_webdav_settings.c
+  qiwo_webdav_config.c
+  qiwo_sync_command.c)
+target_link_libraries(qiwo-webdav-settings ${GTK_LIBRARIES} ${LIBSECRET_LIBRARIES})
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/qiwo.xml.in"
@@ -82,6 +93,7 @@ configure_file(
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo.xml" DESTINATION "${CMAKE_INSTALL_DATADIR}/ibus/component")
 install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
+install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
 install(PROGRAMS qiwo-rime-sync DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" OPTIONAL)
 install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
