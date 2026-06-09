@@ -4,8 +4,10 @@ project(qiwo-ibus)
 set(qiwo_ibus_version 2.0.0)
 
 option(BUILD_STATIC "Build Rime using static libraries" OFF)
+option(BUILD_TESTING "Build qiwo-ibus tests" ON)
 
 include(GNUInstallDirs)
+include(CTest)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
