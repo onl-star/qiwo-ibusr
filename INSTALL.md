@@ -6,8 +6,9 @@
 - IBus 1.5+
 - librime 1.x
 - CMake 3.10+
+- make
 - GCC 或 Clang（支持 C11）
-- Rust/Cargo（从源码构建共享同步命令时需要；使用 `--sync-bin` 时不需要）
+- Rust/Cargo 1.85+（从源码构建共享同步命令时需要；使用 `--sync-bin` 时不需要）
 - libnotify
 - GTK 3
 - libsecret（Secret Service 密码存储）
@@ -21,7 +22,7 @@ sudo apt install \
   ibus libibus-1.0-dev \
   librime-dev librime-data \
   libnotify-dev libgtk-3-dev libsecret-1-dev \
-  cmake gcc pkg-config cargo rustc
+  cmake make gcc pkg-config cargo rustc
 ```
 
 ### Fedora
@@ -31,7 +32,7 @@ sudo dnf install \
   ibus ibus-devel \
   librime librime-devel rime-data \
   libnotify-devel gtk3-devel libsecret-devel \
-  cmake gcc pkg-config cargo rust
+  cmake make gcc pkg-config cargo rust
 ```
 
 ### Arch Linux
@@ -41,7 +42,7 @@ sudo pacman -S \
   ibus \
   librime rime-data \
   libnotify gtk3 libsecret \
-  cmake gcc pkg-config rust
+  cmake make gcc pkgconf rust
 ```
 
 ### openSUSE
@@ -51,7 +52,17 @@ sudo zypper install \
   ibus ibus-devel \
   librime-devel rime-data \
   libnotify-devel gtk3-devel libsecret-devel \
-  cmake gcc pkg-config cargo rust
+  cmake make gcc pkg-config cargo rust
+```
+
+如果发行版仓库里的 Cargo/Rust 低于 1.85（例如 Debian 10 常见旧版本），系统包安装后仍然无法编译 `qiwo-sync-core`。这种情况下使用 rustup 安装当前稳定工具链，并确保 `~/.cargo/bin` 在 `PATH` 中：
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup default stable
+cargo --version
+rustc --version
 ```
 
 ## 源码准备
@@ -86,7 +97,7 @@ cd qiwo-ibusr
 ./install-linux.sh
 ```
 
-脚本会在 apt/dnf/pacman/zypper 系发行版上自动安装系统依赖，初始化必需子模块，配置 CMake、编译、安装并重启 IBus。依赖检查覆盖 IBus、librime、Rime 数据、GTK 3、libnotify、libsecret、CMake、make、C 编译器、pkg-config，以及默认源码构建同步命令所需的 Rust/Cargo。其他发行版请先按本机包管理器安装这些依赖。常用参数：
+脚本会在 apt/dnf/pacman/zypper 系发行版上自动安装系统依赖，初始化必需子模块，配置 CMake、编译、安装并重启 IBus。依赖检查覆盖 IBus、librime、Rime 数据、GTK 3、libnotify、libsecret、CMake、make、C 编译器、pkg-config，以及默认源码构建同步命令所需的 Rust/Cargo 1.85+。其他发行版请先按本机包管理器安装这些依赖。常用参数：
 
 ```bash
 # 指定安装前缀

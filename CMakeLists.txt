@@ -100,6 +100,41 @@ else()
       "cargo was not found. Install Rust/Cargo or set QIWO_RIME_SYNC_BIN "
       "to a prebuilt shared qiwo-rime-sync executable.")
   endif()
+  find_program(RUSTC_EXECUTABLE rustc)
+  if(NOT RUSTC_EXECUTABLE)
+    message(FATAL_ERROR
+      "rustc was not found. Install Rust/Cargo or set QIWO_RIME_SYNC_BIN "
+      "to a prebuilt shared qiwo-rime-sync executable.")
+  endif()
+  set(QIWO_MIN_RUST_VERSION "1.85.0")
+  execute_process(
+    COMMAND "${CARGO_EXECUTABLE}" --version
+    OUTPUT_VARIABLE QIWO_CARGO_VERSION_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" QIWO_CARGO_VERSION
+         "${QIWO_CARGO_VERSION_OUTPUT}")
+  if(NOT QIWO_CARGO_VERSION OR QIWO_CARGO_VERSION VERSION_LESS QIWO_MIN_RUST_VERSION)
+    message(FATAL_ERROR
+      "cargo ${QIWO_CARGO_VERSION_OUTPUT} is too old. qiwo-sync-core uses "
+      "Rust 2024 edition and requires Rust/Cargo >= ${QIWO_MIN_RUST_VERSION}. "
+      "Install a current Rust toolchain with rustup, or set QIWO_RIME_SYNC_BIN "
+      "to a prebuilt shared qiwo-rime-sync executable.")
+  endif()
+  execute_process(
+    COMMAND "${RUSTC_EXECUTABLE}" --version
+    OUTPUT_VARIABLE QIWO_RUSTC_VERSION_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" QIWO_RUSTC_VERSION
+         "${QIWO_RUSTC_VERSION_OUTPUT}")
+  if(NOT QIWO_RUSTC_VERSION OR QIWO_RUSTC_VERSION VERSION_LESS QIWO_MIN_RUST_VERSION)
+    message(FATAL_ERROR
+      "rustc ${QIWO_RUSTC_VERSION_OUTPUT} is too old. qiwo-sync-core uses "
+      "Rust 2024 edition and requires Rust/Cargo >= ${QIWO_MIN_RUST_VERSION}. "
+      "Install a current Rust toolchain with rustup, or set QIWO_RIME_SYNC_BIN "
+      "to a prebuilt shared qiwo-rime-sync executable.")
+  endif()
   add_custom_command(
     OUTPUT "${QIWO_RIME_SYNC_OUTPUT}"
     COMMAND "${CARGO_EXECUTABLE}" build --release

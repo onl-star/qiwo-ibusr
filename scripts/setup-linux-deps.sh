@@ -18,6 +18,7 @@ EOF
 need_cargo=0
 need_git=0
 auto_install=1
+min_rust_version="1.85.0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -60,6 +61,48 @@ has_c_compiler() {
   has_command cc || has_command gcc || has_command clang
 }
 
+extract_semver() {
+  "$1" --version 2>/dev/null | sed -E 's/^[^0-9]*([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/'
+}
+
+version_ge() {
+  local current="$1"
+  local required="$2"
+  local current_major current_minor current_patch
+  local required_major required_minor required_patch
+
+  IFS=. read -r current_major current_minor current_patch <<<"$current"
+  IFS=. read -r required_major required_minor required_patch <<<"$required"
+
+  current_major="${current_major:-0}"
+  current_minor="${current_minor:-0}"
+  current_patch="${current_patch:-0}"
+  required_major="${required_major:-0}"
+  required_minor="${required_minor:-0}"
+  required_patch="${required_patch:-0}"
+
+  if (( current_major > required_major )); then
+    return 0
+  elif (( current_major < required_major )); then
+    return 1
+  elif (( current_minor > required_minor )); then
+    return 0
+  elif (( current_minor < required_minor )); then
+    return 1
+  fi
+  (( current_patch >= required_patch ))
+}
+
+has_min_version() {
+  local command_name="$1"
+  local required="$2"
+  local current
+
+  current="$(extract_semver "$command_name")"
+  [[ "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  version_ge "$current" "$required"
+}
+
 add_missing() {
   missing+=("$1")
 }
@@ -81,8 +124,17 @@ collect_missing_dependencies() {
   fi
 
   if [[ $need_cargo -eq 1 ]]; then
-    has_command cargo || add_missing "cargo"
-    has_command rustc || add_missing "rustc"
+    if ! has_command cargo; then
+      add_missing "cargo >= $min_rust_version"
+    elif ! has_min_version cargo "$min_rust_version"; then
+      add_missing "cargo >= $min_rust_version (found $(extract_semver cargo))"
+    fi
+
+    if ! has_command rustc; then
+      add_missing "rustc >= $min_rust_version"
+    elif ! has_min_version rustc "$min_rust_version"; then
+      add_missing "rustc >= $min_rust_version (found $(extract_semver rustc))"
+    fi
   fi
 
   if [[ $need_git -eq 1 ]]; then
@@ -95,6 +147,16 @@ print_missing_dependencies() {
   for dep in "${missing[@]}"; do
     echo "  - $dep" >&2
   done
+}
+
+print_rust_toolchain_hint() {
+  if [[ $need_cargo -ne 1 ]]; then
+    return 0
+  fi
+
+  echo "qiwo-sync-core uses Rust 2024 edition and requires Rust/Cargo >= $min_rust_version." >&2
+  echo "Older distro packages, such as Debian 10 cargo/rustc, may be too old even after apt install." >&2
+  echo "Install a current Rust toolchain with rustup and ensure ~/.cargo/bin is in PATH, or pass --sync-bin PATH." >&2
 }
 
 run_as_root() {
@@ -179,6 +241,7 @@ fi
 
 echo "--> Missing system dependencies:" >&2
 print_missing_dependencies
+print_rust_toolchain_hint
 
 if [[ $auto_install -eq 0 ]]; then
   echo "ERROR: dependency auto-install is disabled." >&2
@@ -193,6 +256,7 @@ collect_missing_dependencies
 if [[ ${#missing[@]} -ne 0 ]]; then
   echo "ERROR: dependencies are still missing after package installation:" >&2
   print_missing_dependencies
+  print_rust_toolchain_hint
   exit 1
 fi
 

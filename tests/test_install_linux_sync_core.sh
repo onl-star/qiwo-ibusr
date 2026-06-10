@@ -18,6 +18,7 @@ done
 
 for expected in \
   'scripts/setup-linux-deps.sh' \
+  '$HOME/.cargo/bin' \
   '--need-cargo' \
   '--need-git' \
   '--no-install'; do

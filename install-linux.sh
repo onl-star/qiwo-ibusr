@@ -88,6 +88,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${HOME:-}" && -d "$HOME/.cargo/bin" ]]; then
+  export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
 build_path="$build_dir"
 if [[ "$build_path" != /* ]]; then
   build_path="$script_dir/$build_path"

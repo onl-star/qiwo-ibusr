@@ -36,6 +36,20 @@ for expected in cmake make pkg-config cargo rustc git; do
   fi
 done
 
+for expected in 'min_rust_version="1.85.0"' 'Rust 2024 edition' 'rustup'; do
+  if ! grep -q -- "$expected" "$setup_script"; then
+    echo "Linux dependency checker does not explain modern Rust/Cargo requirements: $expected" >&2
+    exit 1
+  fi
+done
+
+for expected in 'QIWO_MIN_RUST_VERSION "1.85.0"' 'Rust 2024 edition' 'VERSION_LESS QIWO_MIN_RUST_VERSION'; do
+  if ! grep -q -- "$expected" "$root/CMakeLists.txt"; then
+    echo "CMake does not enforce modern Rust/Cargo requirements: $expected" >&2
+    exit 1
+  fi
+done
+
 for manager in apt apt-get dnf pacman zypper; do
   if ! grep -q -- "$manager" "$setup_script"; then
     echo "Linux dependency checker does not support $manager" >&2
