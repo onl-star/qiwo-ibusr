@@ -216,6 +216,8 @@ https://dav.example.com/remote.php/dav/files/username/qiwo-rime-sync
 - **测试连接** 使用当前窗口内容执行一次 dry-run，不会修改远端或本地数据。
 - **立即同步** 使用当前有效配置执行完整同步，并在窗口中显示结果或失败原因。完整同步会先调用 Rime 的 `sync_user_data()` 导出词库到 `sync/<device-id>/`，再通过 `qiwo-sync-core` 同步配置文件和词库快照，成功后再次调用 `sync_user_data()` 导入合并结果。
 
+`Sync Now` 会把同步请求交给正在运行的 Qiwo IBus engine 执行，避免独立设置窗口直接打开 Rime 用户词库。如果提示无法联系 engine，请先切换到齐我输入法或执行 `ibus engine qiwo` 后重试。
+
 密码优先保存到桌面 Secret Service（例如 GNOME Keyring、KWallet 兼容服务）。如果当前桌面没有可用的 Secret Service，会回退写入 `~/.config/qiwo/webdav.conf`，文件权限会设置为 `0600`，设置窗口会显示当前密码存储模式。
 
 环境变量仍然可用，并且优先级高于图形保存的配置。需要临时覆盖或继续使用脚本配置时，在 shell 配置文件（`~/.bashrc`、`~/.zshrc` 或 `~/.profile`）中添加：

@@ -1,13 +1,8 @@
 #include <gtk/gtk.h>
-#include <rime_api.h>
 
-#include "qiwo_rime_default_config.h"
+#include "qiwo_sync_ipc.h"
 #include "qiwo_sync_command.h"
 #include "qiwo_webdav_config.h"
-#include "rime_config.h"
-
-#define QIWO_DISTRIBUTION_NAME "齐我输入法"
-#define QIWO_DISTRIBUTION_CODE_NAME "qiwo"
 
 typedef struct {
   GtkWidget *window;
@@ -24,11 +19,6 @@ typedef struct {
   GtkWidget *test_button;
   GtkWidget *sync_button;
 } SettingsWidgets;
-
-typedef struct {
-  RimeApi *api;
-  gboolean initialized;
-} RimeSyncContext;
 
 static GtkWidget *
 add_labeled_entry(GtkGrid *grid,
@@ -302,73 +292,26 @@ get_rime_user_dir(void)
   return g_build_filename(g_get_home_dir(), ".config", "ibus", "rime", NULL);
 }
 
-static void
-fill_rime_traits(RimeTraits *traits, const gchar *rime_user_dir)
-{
-  traits->shared_data_dir = IBUS_RIME_SHARED_DATA_DIR;
-  traits->user_data_dir = rime_user_dir;
-  traits->distribution_name = QIWO_DISTRIBUTION_NAME;
-  traits->distribution_code_name = QIWO_DISTRIBUTION_CODE_NAME;
-  traits->distribution_version = QIWO_IBUS_VERSION;
-  traits->app_name = "rime.qiwo.settings";
-}
-
 static gboolean
-rime_sync_context_init(RimeSyncContext *context,
-                       const gchar *rime_user_dir,
-                       GError **error)
+save_current_settings(SettingsWidgets *widgets, GError **error)
 {
-  if (!qiwo_rime_default_config_ensure(
-          rime_user_dir, NULL, error)) {
-    return FALSE;
-  }
+  QiwoWebDavSettings settings;
+  qiwo_webdav_settings_init(&settings);
+  settings.url = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->url_entry)));
+  settings.remote_path =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->remote_path_entry)));
+  settings.username =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->username_entry)));
+  settings.password =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->password_entry)));
+  settings.device_id =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->device_id_entry)));
+  settings.auto_sync_interval_minutes =
+      gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->interval_spin));
 
-  context->api = rime_get_api();
-  if (!context->api) {
-    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
-                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
-                "Unable to load librime API.");
-    return FALSE;
-  }
-
-  RIME_STRUCT(RimeTraits, setup_traits);
-  fill_rime_traits(&setup_traits, rime_user_dir);
-  context->api->setup(&setup_traits);
-  context->api->deployer_initialize(NULL);
-  context->initialized = TRUE;
-  return TRUE;
-}
-
-static void
-rime_sync_context_clear(RimeSyncContext *context)
-{
-  if (context->initialized && context->api) {
-    context->api->finalize();
-  }
-  context->api = NULL;
-  context->initialized = FALSE;
-}
-
-static gboolean
-rime_sync_user_data_hook(gpointer user_data, GError **error)
-{
-  RimeSyncContext *context = user_data;
-  if (!context || !context->api || !context->initialized) {
-    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
-                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
-                "Rime is not initialized.");
-    return FALSE;
-  }
-
-  if (!context->api->sync_user_data()) {
-    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
-                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
-                "Rime sync_user_data failed.");
-    return FALSE;
-  }
-  context->api->join_maintenance_thread();
-
-  return TRUE;
+  gboolean ok = qiwo_webdav_config_save(&settings, error);
+  qiwo_webdav_settings_clear(&settings);
+  return ok;
 }
 
 static void
@@ -432,29 +375,17 @@ sync_now(GtkButton *button, gpointer user_data)
     return;
   }
 
-  QiwoEffectiveWebDavSettings settings;
-  collect_effective_settings(widgets, &settings);
-  QiwoSyncCommandResult result;
-  qiwo_sync_command_result_init(&result);
-  g_autofree gchar *rime_user_dir = get_rime_user_dir();
-  RimeSyncContext rime_context = {0};
+  g_autofree gchar *response = NULL;
 
   set_action_buttons_sensitive(widgets, FALSE);
   GError *error = NULL;
-  gboolean ok = rime_sync_context_init(&rime_context, rime_user_dir, &error);
+  gboolean ok = save_current_settings(widgets, &error) &&
+      qiwo_sync_ipc_request_sync(&response, &error);
   if (ok) {
-    ok = qiwo_sync_command_run_full_sync(
-        rime_user_dir,
-        &settings,
-        rime_sync_user_data_hook,
-        rime_sync_user_data_hook,
-        &rime_context,
-        &result,
-        &error);
-  }
-  if (ok) {
-    if (result.stdout_text && result.stdout_text[0]) {
-      g_autofree gchar *summary = g_strdup(result.stdout_text);
+    load_saved_settings(widgets);
+    load_override_notice(widgets);
+    if (response && response[0]) {
+      g_autofree gchar *summary = g_strdup(response);
       g_strstrip(summary);
       g_autofree gchar *message = g_strdup_printf("Sync completed: %s", summary);
       gtk_label_set_text(GTK_LABEL(widgets->status_label), message);
@@ -467,20 +398,13 @@ sync_now(GtkButton *button, gpointer user_data)
                        "qiwo-rime-sync was not found. Install it and try again.");
     g_clear_error(&error);
   } else {
-    const gchar *details =
-        result.stderr_text && result.stderr_text[0] ?
-        result.stderr_text :
-        (error ? error->message : "Sync failed.");
+    const gchar *details = error ? error->message : "Sync failed.";
     g_autofree gchar *message = g_strdup_printf("Sync failed: %s", details);
     gtk_label_set_text(GTK_LABEL(widgets->status_label),
                        message);
     g_clear_error(&error);
   }
   set_action_buttons_sensitive(widgets, TRUE);
-
-  rime_sync_context_clear(&rime_context);
-  qiwo_sync_command_result_clear(&result);
-  qiwo_effective_webdav_settings_clear(&settings);
 }
 
 int

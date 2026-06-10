@@ -21,13 +21,8 @@ grep -q 'QIWO_SYNC_CORE_DIR' "$cmake_file" || {
   exit 1
 }
 
-grep -q 'qiwo_rime_default_config.c' "$cmake_file" || {
-  echo "qiwo-webdav-settings does not include Rime default config support" >&2
-  exit 1
-}
-
-grep -q 'target_link_libraries(qiwo-webdav-settings .*Rime' "$cmake_file" || {
-  echo "qiwo-webdav-settings is not linked with librime for full Sync Now" >&2
+grep -q 'qiwo_sync_ipc.c' "$cmake_file" || {
+  echo "CMake does not build the WebDAV sync IPC helper" >&2
   exit 1
 }
 
@@ -36,11 +31,25 @@ grep -q 'qiwo-sync-core/Cargo.toml' "$cmake_file" || {
   exit 1
 }
 
-sync_user_calls="$(grep -c 'rime_api->sync_user_data()' "$rime_main_file" || true)"
-if [[ "$sync_user_calls" -lt 2 ]]; then
-  echo "panel sync no longer exports and imports Rime user data around shared sync" >&2
+grep -q 'qiwo_sync_command_run_full_sync' "$rime_main_file" || {
+  echo "engine sync no longer runs the shared full sync flow" >&2
   exit 1
-fi
+}
+
+grep -q 'rime_api->sync_user_data()' "$rime_main_file" || {
+  echo "engine full sync no longer calls Rime sync_user_data" >&2
+  exit 1
+}
+
+grep -q 'join_maintenance_thread' "$rime_main_file" || {
+  echo "engine full sync should wait for Rime user dictionary export/import" >&2
+  exit 1
+}
+
+grep -q 'qiwo_sync_ipc_create_server' "$rime_main_file" || {
+  echo "engine does not expose the settings Sync Now IPC server" >&2
+  exit 1
+}
 
 run_sync_calls="$(grep -c 'qiwo_sync_command_run_sync' "$settings_file" || true)"
 if [[ "$run_sync_calls" -lt 1 ]]; then
@@ -53,25 +62,20 @@ grep -q 'Sync Now' "$settings_file" || {
   exit 1
 }
 
-grep -q 'qiwo_sync_command_run_full_sync' "$settings_file" || {
-  echo "settings Sync Now should use the full sync flow with Rime user dictionary hooks" >&2
+grep -q 'qiwo_sync_ipc_request_sync' "$settings_file" || {
+  echo "settings Sync Now should delegate full sync to the running IBus engine" >&2
   exit 1
 }
 
-grep -q 'deployer_initialize(NULL)' "$settings_file" || {
-  echo "settings Sync Now should load librime deployer modules before sync_user_data" >&2
-  exit 1
-}
-
-if grep -q 'api->initialize' "$settings_file"; then
-  echo "settings Sync Now should not initialize a full librime service" >&2
+if grep -q 'rime_api.h' "$settings_file"; then
+  echo "settings Sync Now should not initialize librime directly" >&2
   exit 1
 fi
 
-grep -q 'join_maintenance_thread' "$settings_file" || {
-  echo "settings Sync Now should wait for librime user dictionary export/import" >&2
+if grep -q 'sync_user_data' "$settings_file"; then
+  echo "settings Sync Now should not touch Rime userdb directly" >&2
   exit 1
-}
+fi
 
 grep -q 'ibus_rime_sync_user_data();' "$rime_main_file" || {
   echo "auto-sync or panel path no longer calls ibus_rime_sync_user_data" >&2

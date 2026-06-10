@@ -175,16 +175,17 @@ set(IBUS_RIME_SRC
   rime_settings.c
   qiwo_rime_default_config.c
   qiwo_webdav_config.c
-  qiwo_sync_command.c)
+  qiwo_sync_command.c
+  qiwo_sync_ipc.c)
 add_executable(ibus-engine-rime ${IBUS_RIME_SRC})
 target_link_libraries(ibus-engine-rime ${IBus_LIBRARIES} ${LIBNOTIFY_LIBRARIES} ${LIBSECRET_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS})
 
 add_executable(qiwo-webdav-settings
   qiwo_webdav_settings.c
-  qiwo_rime_default_config.c
   qiwo_webdav_config.c
-  qiwo_sync_command.c)
-target_link_libraries(qiwo-webdav-settings ${GTK_LIBRARIES} ${LIBSECRET_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS})
+  qiwo_sync_command.c
+  qiwo_sync_ipc.c)
+target_link_libraries(qiwo-webdav-settings ${GTK_LIBRARIES} ${LIBSECRET_LIBRARIES})
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/qiwo.xml.in"

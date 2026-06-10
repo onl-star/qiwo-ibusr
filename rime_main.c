@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <glib.h>
 #include <glib-object.h>
 #include <glib/gstdio.h>
@@ -14,6 +17,7 @@
 #include "rime_settings.h"
 #include "qiwo_rime_default_config.h"
 #include "qiwo_sync_command.h"
+#include "qiwo_sync_ipc.h"
 #include "qiwo_webdav_config.h"
 
 // TODO:
@@ -25,6 +29,8 @@
 #define IBUS_COMPONENT_NAME "im.rime.Qiwo"
 
 RimeApi *rime_api = NULL;
+static gint sync_ipc_fd = -1;
+static guint sync_ipc_watch_id = 0;
 
 static const char* get_ibus_rime_user_data_dir(char *path) {
   const char* home = getenv("HOME");
@@ -104,6 +110,8 @@ static void ibus_disconnect_cb(IBusBus *bus, gpointer user_data) {
 }
 
 static gboolean auto_sync_callback(gpointer user_data);
+static void start_sync_ipc_server(void);
+static void stop_sync_ipc_server(void);
 
 static void rime_with_ibus() {
   ibus_init();
@@ -150,7 +158,11 @@ static void rime_with_ibus() {
             g_ibus_rime_settings.auto_sync_interval_seconds);
   }
 
+  start_sync_ipc_server();
+
   ibus_main();
+
+  stop_sync_ipc_server();
 
   if (auto_sync_timer_id > 0) {
     g_source_remove(auto_sync_timer_id);
@@ -247,6 +259,28 @@ static gboolean auto_sync_callback(gpointer user_data) {
   return G_SOURCE_CONTINUE;
 }
 
+static gboolean
+write_all_to_fd(gint fd, const gchar *data, gsize length)
+{
+  gsize offset = 0;
+  while (offset < length) {
+#ifdef MSG_NOSIGNAL
+    ssize_t written = send(fd, data + offset, length - offset, MSG_NOSIGNAL);
+#else
+    ssize_t written = write(fd, data + offset, length - offset);
+#endif
+    if (written < 0) {
+      if (errno == EINTR) continue;
+      return FALSE;
+    }
+    if (written == 0) {
+      return FALSE;
+    }
+    offset += (gsize)written;
+  }
+  return TRUE;
+}
+
 static char* get_qiwo_settings_tool(void) {
   static const char* paths[] = {
 #ifdef QIWO_SYNC_DIR
@@ -286,7 +320,34 @@ void ibus_rime_open_webdav_settings(void) {
   g_free(tool);
 }
 
-void ibus_rime_sync_user_data(void) {
+static gboolean
+rime_sync_user_data_hook(gpointer user_data, GError **error)
+{
+  (void)user_data;
+  if (!rime_api) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Rime API is not initialized.");
+    return FALSE;
+  }
+
+  if (!rime_api->sync_user_data()) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Rime sync_user_data failed.");
+    return FALSE;
+  }
+  rime_api->join_maintenance_thread();
+  return TRUE;
+}
+
+static gboolean
+ibus_rime_run_webdav_sync(gchar **message_out)
+{
+  if (message_out) {
+    *message_out = NULL;
+  }
+
   char user_data_dir[PATH_MAX];
   get_ibus_rime_user_data_dir(user_data_dir);
 
@@ -296,11 +357,13 @@ void ibus_rime_sync_user_data(void) {
   if (!qiwo_webdav_config_load_effective(&settings, &error)) {
     g_warning("Qiwo WebDAV config load failed: %s",
               error ? error->message : "unknown");
-    show_message(_("Qiwo WebDAV sync failed"),
-                 error ? error->message : _("Unable to load settings."));
+    if (message_out) {
+      *message_out = g_strdup(error ? error->message :
+                              _("Unable to load settings."));
+    }
     g_clear_error(&error);
     qiwo_effective_webdav_settings_clear(&settings);
-    return;
+    return FALSE;
   }
   if (!settings.device_id || !settings.device_id[0]) {
     g_free(settings.device_id);
@@ -311,30 +374,107 @@ void ibus_rime_sync_user_data(void) {
   // Ensure installation.yaml sync config
   qiwo_ensure_installation_yaml(user_data_dir, settings.device_id);
 
-  if (rime_api) {
-    rime_api->sync_user_data();
-  }
-
   QiwoSyncCommandResult result;
   qiwo_sync_command_result_init(&result);
-  gboolean ok = qiwo_sync_command_run_sync(
-      user_data_dir, &settings, FALSE, &result, &error);
+  gboolean ok = qiwo_sync_command_run_full_sync(
+      user_data_dir,
+      &settings,
+      rime_sync_user_data_hook,
+      rime_sync_user_data_hook,
+      NULL,
+      &result,
+      &error);
 
   if (!ok) {
     const gchar* details = error ? error->message :
         (result.stderr_text ? result.stderr_text : _("Unknown error."));
     g_warning("Qiwo WebDAV sync failed: %s", details);
-    show_message(_("Qiwo WebDAV sync failed"), details);
-  } else if (rime_api) {
-    rime_api->sync_user_data();
-    show_message(_("Qiwo WebDAV sync complete"),
-                 result.stdout_text && result.stdout_text[0] ?
-                 result.stdout_text : _("Sync completed."));
+    if (message_out) {
+      *message_out = g_strdup(details);
+    }
+  } else {
+    if (message_out) {
+      *message_out = g_strdup(
+          result.stdout_text && result.stdout_text[0] ?
+          result.stdout_text : _("Sync completed."));
+    }
   }
 
   g_clear_error(&error);
   qiwo_sync_command_result_clear(&result);
   qiwo_effective_webdav_settings_clear(&settings);
+  return ok;
+}
+
+void ibus_rime_sync_user_data(void) {
+  gchar *message = NULL;
+  gboolean ok = ibus_rime_run_webdav_sync(&message);
+  show_message(ok ? _("Qiwo WebDAV sync complete") :
+                    _("Qiwo WebDAV sync failed"),
+               message && message[0] ? message :
+               (ok ? _("Sync completed.") : _("Unknown error.")));
+  g_free(message);
+}
+
+static gboolean
+sync_ipc_accept_cb(GIOChannel *source, GIOCondition condition, gpointer user_data)
+{
+  (void)source;
+  (void)user_data;
+  if (condition & (G_IO_ERR | G_IO_HUP | G_IO_NVAL)) {
+    return G_SOURCE_CONTINUE;
+  }
+
+  gint client_fd = accept(sync_ipc_fd, NULL, NULL);
+  if (client_fd < 0) {
+    return G_SOURCE_CONTINUE;
+  }
+
+  gchar *message = NULL;
+  gboolean ok = ibus_rime_run_webdav_sync(&message);
+  g_autofree gchar *response =
+      g_strdup_printf("%s\n%s\n",
+                      ok ? "OK" : "ERROR",
+                      message && message[0] ? message :
+                      (ok ? _("Sync completed.") : _("Unknown error.")));
+  write_all_to_fd(client_fd, response, strlen(response));
+  close(client_fd);
+  g_free(message);
+  return G_SOURCE_CONTINUE;
+}
+
+static void
+start_sync_ipc_server(void)
+{
+  GError *error = NULL;
+  sync_ipc_fd = qiwo_sync_ipc_create_server(&error);
+  if (sync_ipc_fd < 0) {
+    g_warning("Qiwo sync IPC server failed: %s",
+              error ? error->message : "unknown");
+    g_clear_error(&error);
+    return;
+  }
+
+  GIOChannel *channel = g_io_channel_unix_new(sync_ipc_fd);
+  sync_ipc_watch_id = g_io_add_watch(
+      channel, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
+      sync_ipc_accept_cb, NULL);
+  g_io_channel_unref(channel);
+}
+
+static void
+stop_sync_ipc_server(void)
+{
+  if (sync_ipc_watch_id > 0) {
+    g_source_remove(sync_ipc_watch_id);
+    sync_ipc_watch_id = 0;
+  }
+  if (sync_ipc_fd >= 0) {
+    close(sync_ipc_fd);
+    sync_ipc_fd = -1;
+  }
+  g_autofree gchar *path = qiwo_sync_ipc_socket_path();
+  unlink(path);
 }
 
 int main(gint argc, gchar** argv) {
