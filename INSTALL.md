@@ -44,19 +44,34 @@ sudo pacman -S \
   cmake gcc pkg-config rust
 ```
 
-## 源码准备
-
-qiwo-ibusr 使用系统包管理器安装的 librime，不需要本地子模块。但如果是通过 git 获取源码，建议递归克隆：
+### openSUSE
 
 ```bash
-git clone --recursive https://github.com/qiwo/qiwo-ibusr.git
+sudo zypper install \
+  ibus ibus-devel \
+  librime-devel rime-data \
+  libnotify-devel gtk3-devel libsecret-devel \
+  cmake gcc pkg-config cargo rust
+```
+
+## 源码准备
+
+qiwo-ibusr 使用系统包管理器安装的 librime，不需要本地 `librime` 子模块。普通克隆即可：
+
+```bash
+git clone https://github.com/qiwo/qiwo-ibusr.git
 cd qiwo-ibusr
 ```
 
-如果已克隆但没有子模块内容（目录为空），初始化它们：
+`install-linux.sh` 会在需要时自动初始化必需子模块：
+
+- `rime-frost`：默认输入方案资源
+- `qiwo-sync-core`：共享 WebDAV 同步命令
+
+如果要手动初始化，只需要拉这两个子模块：
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --recursive rime-frost qiwo-sync-core
 ```
 
 > 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。
@@ -71,13 +86,13 @@ cd qiwo-ibusr
 ./install-linux.sh
 ```
 
-脚本会自动安装系统依赖、配置 CMake、编译、安装并重启 IBus。常用参数：
+脚本会在 apt/dnf/pacman/zypper 系发行版上自动安装系统依赖，初始化必需子模块，配置 CMake、编译、安装并重启 IBus。其他发行版请先按本机包管理器安装 IBus、librime、Rime 数据、GTK 3、libnotify、libsecret、CMake、pkg-config 和 Rust/Cargo。常用参数：
 
 ```bash
 # 指定安装前缀
 ./install-linux.sh --prefix /usr/local
 
-# CMake 找不到 Rime 数据目录时手动指定
+# CMake 找不到 Rime 数据目录时手动指定，目录中需要有 default.yaml
 ./install-linux.sh --rime-data-dir /usr/share/rime-data
 
 # 可选：指定其他 qiwo-sync-core 源码目录构建共享同步命令
@@ -94,6 +109,7 @@ cd qiwo-ibusr
 
 ```bash
 cd qiwo-ibusr
+git submodule update --init --recursive rime-frost qiwo-sync-core
 
 # 配置（默认安装到 /usr）
 mkdir -p build && cd build
@@ -298,7 +314,7 @@ Linux 安装的 `qiwo-rime-sync` 应来自 `qiwo-sync-core`。可用以下命令
 如果安装时报 `qiwo-sync-core source tree was not found`，请确认已初始化子模块，或显式传入源码目录：
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --recursive qiwo-sync-core
 ./install-linux.sh --sync-core-dir ../qiwo-sync-core
 ```
 

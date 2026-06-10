@@ -20,21 +20,18 @@ all: ibus-engine-rime
 
 setup:
 	@echo "*** Checking system dependencies..."
-	@for pkg in ibus-1.0 librime libnotify gtk+-3.0 libsecret-1; do \
+	@for pkg in ibus-1.0 rime libnotify gtk+-3.0 libsecret-1; do \
 		if ! pkg-config --exists $$pkg 2>/dev/null; then \
 			echo "--> $$pkg missing, installing..."; \
 			if   command -v apt     >/dev/null; then $(SUDO) apt install -y ibus libibus-1.0-dev librime-dev librime-data libnotify-dev libgtk-3-dev libsecret-1-dev cmake gcc pkg-config cargo rustc; break; \
 			elif command -v dnf     >/dev/null; then $(SUDO) dnf install -y ibus ibus-devel librime librime-devel rime-data libnotify-devel gtk3-devel libsecret-devel cmake gcc pkg-config cargo rust; break; \
 			elif command -v pacman  >/dev/null; then $(SUDO) pacman -S --needed --noconfirm ibus librime rime-data libnotify gtk3 libsecret cmake gcc pkg-config rust; break; \
 			elif command -v zypper  >/dev/null; then $(SUDO) zypper install -y ibus ibus-devel librime-devel rime-data libnotify-devel gtk3-devel libsecret-devel cmake gcc pkg-config cargo rust; break; \
-			else echo "ERROR: unknown package manager, install ibus/librime/libnotify/gtk3/libsecret dev packages manually"; exit 1; \
+			else echo "ERROR: unknown package manager, install ibus/rime/libnotify/gtk3/libsecret dev packages manually"; exit 1; \
 			fi; \
 		fi; \
 	done
 	@echo "--> All system dependencies present."
-	@if [ -f .gitmodules ] || [ -d .git ]; then \
-		git submodule update --init --recursive 2>/dev/null || true; \
-	fi
 
 ibus-engine-rime: setup
 	mkdir -p $(builddir)

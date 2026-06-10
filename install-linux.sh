@@ -97,7 +97,46 @@ if [[ $skip_setup -eq 0 ]]; then
   make -C "$script_dir" setup
 fi
 
-ensure_bundled_sync_core() {
+ensure_required_submodule() {
+  local name="$1"
+  local marker="$2"
+  local hint="$3"
+
+  if [[ -e "$script_dir/$marker" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$script_dir/.gitmodules" ]]; then
+    echo "ERROR: required submodule $name is missing: $script_dir/$marker" >&2
+    echo "$hint" >&2
+    exit 1
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "ERROR: required submodule $name is missing and git is not available." >&2
+    echo "$hint" >&2
+    exit 1
+  fi
+
+  echo "--> $name submodule missing, initializing..."
+  if ! git -C "$script_dir" submodule update --init --recursive "$name"; then
+    echo "ERROR: failed to initialize $name submodule." >&2
+    echo "$hint" >&2
+    exit 1
+  fi
+  if [[ ! -e "$script_dir/$marker" ]]; then
+    echo "ERROR: $name submodule is still missing after initialization." >&2
+    echo "Expected: $script_dir/$marker" >&2
+    exit 1
+  fi
+}
+
+ensure_rime_frost() {
+  ensure_required_submodule \
+    "rime-frost" \
+    "rime-frost/rime_frost.schema.yaml" \
+    "Run git submodule update --init --recursive rime-frost, or clone with --recursive."
+}
+
+ensure_sync_core_source() {
   if [[ -n "$sync_bin" || -n "$sync_core_dir" ]]; then
     return 0
   fi
@@ -107,29 +146,30 @@ ensure_bundled_sync_core() {
   if [[ -f "$script_dir/../qiwo-sync-core/Cargo.toml" ]]; then
     return 0
   fi
-  if [[ ! -f "$script_dir/.gitmodules" ]]; then
-    return 0
-  fi
-  if ! command -v git >/dev/null 2>&1; then
-    echo "ERROR: bundled qiwo-sync-core is missing and git is not available." >&2
-    echo "Run git submodule update --init --recursive, install git, or pass --sync-bin PATH." >&2
-    exit 1
-  fi
-
-  echo "--> qiwo-sync-core submodule missing, initializing..."
-  if ! git -C "$script_dir" submodule update --init --recursive qiwo-sync-core; then
-    echo "ERROR: failed to initialize qiwo-sync-core submodule." >&2
-    echo "Run git submodule update --init --recursive, or pass --sync-bin PATH." >&2
-    exit 1
-  fi
-  if [[ ! -f "$script_dir/qiwo-sync-core/Cargo.toml" ]]; then
-    echo "ERROR: qiwo-sync-core submodule is still missing after initialization." >&2
-    echo "Expected: $script_dir/qiwo-sync-core/Cargo.toml" >&2
-    exit 1
-  fi
+  ensure_required_submodule \
+    "qiwo-sync-core" \
+    "qiwo-sync-core/Cargo.toml" \
+    "Run git submodule update --init --recursive qiwo-sync-core, or pass --sync-bin PATH."
 }
 
-ensure_bundled_sync_core
+ensure_rime_frost
+ensure_sync_core_source
+
+find_rime_data_dir_from_paths() {
+  local path
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    if [[ -d "$path" && -f "$path/default.yaml" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+    if [[ -f "$path" && "$(basename -- "$path")" == "default.yaml" ]]; then
+      dirname -- "$path"
+      return 0
+    fi
+  done
+  return 1
+}
 
 detect_rime_data_dir() {
   local candidates=(
@@ -145,7 +185,7 @@ detect_rime_data_dir() {
   )
   local candidate
   for candidate in "${candidates[@]}"; do
-    if [[ -d "$candidate" ]]; then
+    if [[ -d "$candidate" && -f "$candidate/default.yaml" ]]; then
       printf '%s\n' "$candidate"
       return 0
     fi
@@ -155,20 +195,32 @@ detect_rime_data_dir() {
     local var value
     for var in pkgdatadir datadir rime_data_dir; do
       value="$(pkg-config --variable="$var" rime 2>/dev/null || true)"
-      if [[ -n "$value" && -d "$value" ]]; then
+      if [[ -n "$value" && -d "$value" && -f "$value/default.yaml" ]]; then
         printf '%s\n' "$value"
         return 0
       fi
     done
   fi
 
+  local value
   if command -v dpkg-query >/dev/null 2>&1; then
-    value="$(dpkg-query -L librime-data 2>/dev/null | while IFS= read -r path; do
-      if [[ -d "$path" && -f "$path/default.yaml" ]]; then
-        printf '%s\n' "$path"
-        break
-      fi
-    done)"
+    value="$(dpkg-query -L librime-data rime-data 2>/dev/null | find_rime_data_dir_from_paths || true)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  fi
+
+  if command -v rpm >/dev/null 2>&1; then
+    value="$(rpm -ql rime-data librime-data librime 2>/dev/null | find_rime_data_dir_from_paths || true)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  fi
+
+  if command -v pacman >/dev/null 2>&1; then
+    value="$(pacman -Ql rime-data librime 2>/dev/null | awk '{print $2}' | find_rime_data_dir_from_paths || true)"
     if [[ -n "$value" ]]; then
       printf '%s\n' "$value"
       return 0
@@ -181,11 +233,14 @@ detect_rime_data_dir() {
 if [[ -z "$rime_data_dir" ]]; then
   rime_data_dir="$(detect_rime_data_dir || true)"
 fi
-if [[ -z "$rime_data_dir" || ! -d "$rime_data_dir" ]]; then
+if [[ -z "$rime_data_dir" || ! -d "$rime_data_dir" || ! -f "$rime_data_dir/default.yaml" ]]; then
   echo "ERROR: Rime data directory was not found." >&2
-  echo "Install rime data packages or rerun with --rime-data-dir PATH." >&2
+  echo "Install rime data packages or rerun with --rime-data-dir PATH containing default.yaml." >&2
   echo "Useful diagnostics:" >&2
-  echo "  dpkg-query -L librime-data | grep -E 'default.yaml|rime-data|brise'" >&2
+  echo "  pkg-config --variable=pkgdatadir rime" >&2
+  echo "  dpkg-query -L librime-data rime-data | grep -E 'default.yaml|rime-data|brise'" >&2
+  echo "  rpm -ql rime-data librime-data librime | grep -E 'default.yaml|rime-data|brise'" >&2
+  echo "  pacman -Ql rime-data librime | grep -E 'default.yaml|rime-data|brise'" >&2
   echo "  find /usr /usr/local -maxdepth 4 -name default.yaml 2>/dev/null" >&2
   exit 1
 fi
@@ -291,7 +346,7 @@ fi
 if [[ ! -f "$rime_frost_schema_file" ]]; then
   echo "ERROR: rime-frost schema was not installed: $rime_frost_schema_file" >&2
   echo "Make sure the rime-frost submodule is initialized:" >&2
-  echo "  git submodule update --init --recursive" >&2
+  echo "  git submodule update --init --recursive rime-frost" >&2
   exit 1
 fi
 

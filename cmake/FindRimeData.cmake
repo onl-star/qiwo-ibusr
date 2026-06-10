@@ -31,10 +31,11 @@ endif()
 set(RIME_DATA_FOUND FALSE)
 
 foreach(_RIME_DATA_DIR ${RIME_DATA_FIND_DIR})
-    if (IS_DIRECTORY ${_RIME_DATA_DIR})
+    if (IS_DIRECTORY "${_RIME_DATA_DIR}" AND EXISTS "${_RIME_DATA_DIR}/default.yaml")
         set(RIME_DATA_FOUND True)
         set(RIME_DATA_DIR ${_RIME_DATA_DIR})
-    endif (IS_DIRECTORY ${_RIME_DATA_DIR})
+        break()
+    endif ()
 endforeach(_RIME_DATA_DIR)
 
 include(FindPackageHandleStandardArgs)
