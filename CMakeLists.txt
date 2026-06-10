@@ -5,6 +5,8 @@ set(qiwo_ibus_version 2.0.0)
 
 option(BUILD_STATIC "Build Rime using static libraries" OFF)
 option(BUILD_TESTING "Build qiwo-ibus tests" ON)
+set(QIWO_RIME_SYNC_BIN "" CACHE FILEPATH "Path to a prebuilt shared qiwo-rime-sync executable")
+set(QIWO_SYNC_CORE_DIR "" CACHE PATH "Path to qiwo-sync-core source tree")
 
 include(GNUInstallDirs)
 include(CTest)
@@ -57,6 +59,58 @@ endif()
 set(qiwo_sync_dir "${CMAKE_INSTALL_FULL_DATADIR}/qiwo")
 add_definitions(-DQIWO_SYNC_DIR="${qiwo_sync_dir}")
 
+if(NOT QIWO_SYNC_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-sync-core/Cargo.toml")
+  set(QIWO_SYNC_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-sync-core"
+      CACHE PATH "Path to qiwo-sync-core source tree" FORCE)
+endif()
+if(QIWO_RIME_SYNC_BIN)
+  get_filename_component(QIWO_RIME_SYNC_BIN "${QIWO_RIME_SYNC_BIN}" ABSOLUTE)
+endif()
+if(QIWO_SYNC_CORE_DIR)
+  get_filename_component(QIWO_SYNC_CORE_DIR "${QIWO_SYNC_CORE_DIR}" ABSOLUTE)
+endif()
+
+set(QIWO_RIME_SYNC_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/qiwo-rime-sync")
+if(QIWO_RIME_SYNC_BIN)
+  if(NOT EXISTS "${QIWO_RIME_SYNC_BIN}")
+    message(FATAL_ERROR
+      "QIWO_RIME_SYNC_BIN does not exist: ${QIWO_RIME_SYNC_BIN}. "
+      "Pass a valid prebuilt qiwo-rime-sync executable or use QIWO_SYNC_CORE_DIR.")
+  endif()
+  add_custom_command(
+    OUTPUT "${QIWO_RIME_SYNC_OUTPUT}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${QIWO_RIME_SYNC_BIN}" "${QIWO_RIME_SYNC_OUTPUT}"
+    DEPENDS "${QIWO_RIME_SYNC_BIN}"
+    COMMENT "Staging prebuilt shared qiwo-rime-sync"
+    VERBATIM)
+else()
+  if(NOT QIWO_SYNC_CORE_DIR OR NOT EXISTS "${QIWO_SYNC_CORE_DIR}/Cargo.toml")
+    message(FATAL_ERROR
+      "qiwo-sync-core source tree was not found. "
+      "Set QIWO_SYNC_CORE_DIR to a directory containing Cargo.toml, "
+      "or set QIWO_RIME_SYNC_BIN to a prebuilt shared qiwo-rime-sync executable.")
+  endif()
+  find_program(CARGO_EXECUTABLE cargo)
+  if(NOT CARGO_EXECUTABLE)
+    message(FATAL_ERROR
+      "cargo was not found. Install Rust/Cargo or set QIWO_RIME_SYNC_BIN "
+      "to a prebuilt shared qiwo-rime-sync executable.")
+  endif()
+  add_custom_command(
+    OUTPUT "${QIWO_RIME_SYNC_OUTPUT}"
+    COMMAND "${CARGO_EXECUTABLE}" build --release
+            --manifest-path "${QIWO_SYNC_CORE_DIR}/Cargo.toml"
+            -p qiwo-rime-sync
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${QIWO_SYNC_CORE_DIR}/target/release/qiwo-rime-sync"
+            "${QIWO_RIME_SYNC_OUTPUT}"
+    WORKING_DIRECTORY "${QIWO_SYNC_CORE_DIR}"
+    COMMENT "Building shared qiwo-rime-sync from qiwo-sync-core"
+    VERBATIM)
+endif()
+add_custom_target(qiwo-rime-sync-tool ALL DEPENDS "${QIWO_RIME_SYNC_OUTPUT}")
+
 set(ibus_rime_icons_dir "${CMAKE_INSTALL_FULL_DATADIR}/qiwo/icons")
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/rime_config.h.in"
@@ -107,7 +161,7 @@ install(TARGETS ibus-engine-rime DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
 install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
-install(PROGRAMS qiwo_sync.py DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo" RENAME qiwo-rime-sync)
+install(PROGRAMS "${QIWO_RIME_SYNC_OUTPUT}" DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo")
 install(DIRECTORY "${QIWO_RIME_FROST_DIR}/" DESTINATION "${RIME_DATA_DIR}"
   FILES_MATCHING
   PATTERN "*.yaml"
@@ -125,6 +179,17 @@ install(FILES ibus_rime.yaml DESTINATION "${RIME_DATA_DIR}")
 
 if(BUILD_TESTING)
   enable_testing()
+
+  add_test(NAME sync_core_packaging
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sync_core_packaging.sh")
+  add_test(NAME install_linux_sync_core
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_install_linux_sync_core.sh")
+  add_test(NAME sync_core_dependencies
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sync_core_dependencies.sh")
+  add_test(NAME sync_core_file_selector
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sync_core_file_selector.sh")
+  set_tests_properties(sync_core_file_selector PROPERTIES
+    ENVIRONMENT "QIWO_SYNC_CORE_DIR=${QIWO_SYNC_CORE_DIR}")
 
   add_executable(test_qiwo_webdav_config
     tests/test_qiwo_webdav_config.c

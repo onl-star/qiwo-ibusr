@@ -48,6 +48,42 @@ test_build_argv_preserves_special_values(void)
 }
 
 static void
+test_build_argv_matches_shared_cli_contract(void)
+{
+  QiwoEffectiveWebDavSettings settings = make_effective_settings();
+  g_auto(GStrv) argv = qiwo_sync_command_build_argv(
+      "/usr/local/bin/qiwo-rime-sync",
+      "/home/me/.config/ibus/rime",
+      &settings,
+      FALSE);
+
+  const gchar *expected[] = {
+    "/usr/local/bin/qiwo-rime-sync",
+    "sync",
+    "--frontend",
+    "ibus-rime",
+    "--rime-user-dir",
+    "/home/me/.config/ibus/rime",
+    "--remote-url",
+    "https://dav.example.com/qiwo path?x=1&y=2",
+    "--username",
+    "user name",
+    "--password-env",
+    "QIWO_WEBDAV_PASSWORD",
+    "--device-id",
+    "linux main",
+    NULL
+  };
+
+  for (guint i = 0; expected[i]; i++) {
+    g_assert_cmpstr(argv[i], ==, expected[i]);
+  }
+  g_assert_null(argv[14]);
+
+  qiwo_effective_webdav_settings_clear(&settings);
+}
+
+static void
 test_build_argv_adds_dry_run(void)
 {
   QiwoEffectiveWebDavSettings settings = make_effective_settings();
@@ -107,6 +143,8 @@ main(int argc, char **argv)
 
   g_test_add_func("/qiwo/sync-command/build-argv-preserves-special-values",
                   test_build_argv_preserves_special_values);
+  g_test_add_func("/qiwo/sync-command/build-argv-matches-shared-cli-contract",
+                  test_build_argv_matches_shared_cli_contract);
   g_test_add_func("/qiwo/sync-command/build-argv-adds-dry-run",
                   test_build_argv_adds_dry_run);
   g_test_add_func("/qiwo/sync-command/find-tool-uses-executable-override",

@@ -11,6 +11,8 @@ Options:
   --prefix PATH          Install prefix, default: /usr
   --build-dir PATH       Build directory, default: build
   --rime-data-dir PATH   Override Rime data directory if CMake cannot find it
+  --sync-bin PATH        Use a prebuilt shared qiwo-rime-sync executable
+  --sync-core-dir PATH   Build shared qiwo-rime-sync from this qiwo-sync-core tree
   --run-tests            Run CTest before installation
   --skip-setup           Do not auto-install system dependencies
   --skip-ibus-restart    Do not restart IBus after installation
@@ -20,12 +22,16 @@ Environment:
   PREFIX                 Same as --prefix
   builddir               Same as --build-dir
   RIME_DATA_DIR          Same as --rime-data-dir
+  QIWO_RIME_SYNC_BIN     Same as --sync-bin
+  QIWO_SYNC_CORE_DIR     Same as --sync-core-dir
 EOF
 }
 
 prefix="${PREFIX:-/usr}"
 build_dir="${builddir:-build}"
 rime_data_dir="${RIME_DATA_DIR:-}"
+sync_bin="${QIWO_RIME_SYNC_BIN:-}"
+sync_core_dir="${QIWO_SYNC_CORE_DIR:-}"
 run_tests=0
 skip_setup=0
 skip_ibus_restart=0
@@ -42,6 +48,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --rime-data-dir)
       rime_data_dir="${2:?missing value for --rime-data-dir}"
+      shift 2
+      ;;
+    --sync-bin)
+      sync_bin="${2:?missing value for --sync-bin}"
+      shift 2
+      ;;
+    --sync-core-dir)
+      sync_core_dir="${2:?missing value for --sync-core-dir}"
       shift 2
       ;;
     --run-tests)
@@ -152,6 +166,26 @@ cmake_args=(
   -DBUILD_TESTING=ON
   "-DRIME_DATA_DIR=$rime_data_dir"
 )
+if [[ -n "$sync_bin" ]]; then
+  if [[ ! -x "$sync_bin" ]]; then
+    echo "ERROR: --sync-bin must point to an executable shared qiwo-rime-sync: $sync_bin" >&2
+    exit 1
+  fi
+  sync_bin="$(cd -- "$(dirname -- "$sync_bin")" && pwd)/$(basename -- "$sync_bin")"
+  cmake_args+=("-DQIWO_RIME_SYNC_BIN=$sync_bin")
+fi
+if [[ -n "$sync_core_dir" ]]; then
+  if [[ ! -f "$sync_core_dir/Cargo.toml" ]]; then
+    echo "ERROR: --sync-core-dir must point to qiwo-sync-core containing Cargo.toml: $sync_core_dir" >&2
+    exit 1
+  fi
+  sync_core_dir="$(cd -- "$sync_core_dir" && pwd)"
+  if [[ -z "$sync_bin" ]] && ! command -v cargo >/dev/null 2>&1; then
+    echo "ERROR: cargo is required to build qiwo-sync-core. Install Rust/Cargo or pass --sync-bin PATH." >&2
+    exit 1
+  fi
+  cmake_args+=("-DQIWO_SYNC_CORE_DIR=$sync_core_dir")
+fi
 
 cmake "${cmake_args[@]}"
 cmake --build "$build_path"
@@ -208,6 +242,16 @@ if [[ ! -f "$settings_desktop_file" ]]; then
 fi
 if [[ ! -x "$sync_file" ]]; then
   echo "ERROR: WebDAV sync executable was not installed or is not executable: $sync_file" >&2
+  exit 1
+fi
+if ! sync_help="$("$sync_file" --help 2>&1)"; then
+  echo "ERROR: installed qiwo-rime-sync did not run --help successfully: $sync_file" >&2
+  echo "$sync_help" >&2
+  exit 1
+fi
+if ! grep -Eq 'init-frost|sync-user-dict' <<<"$sync_help"; then
+  echo "ERROR: installed qiwo-rime-sync does not look like the shared qiwo-sync-core CLI: $sync_file" >&2
+  echo "Expected --help output to mention init-frost or sync-user-dict." >&2
   exit 1
 fi
 if [[ ! -f "$rime_frost_schema_file" ]]; then

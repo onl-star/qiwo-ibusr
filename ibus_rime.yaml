@@ -3,6 +3,7 @@
 config_version: '1.0'
 
 # WebDAV sync configuration.
+# Linux uses the shared qiwo-rime-sync command from qiwo-sync-core.
 # Open "WebDAV 设置" from the IBus panel, or run:
 #   qiwo-webdav-settings
 #

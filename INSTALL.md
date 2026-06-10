@@ -4,10 +4,10 @@
 
 - Linux（任何发行版）
 - IBus 1.5+
-- Python 3.8+
 - librime 1.x
 - CMake 3.10+
 - GCC 或 Clang（支持 C11）
+- Rust/Cargo（从源码构建共享同步命令时需要；使用 `--sync-bin` 时不需要）
 - libnotify
 - GTK 3
 - libsecret（Secret Service 密码存储）
@@ -21,8 +21,7 @@ sudo apt install \
   ibus libibus-1.0-dev \
   librime-dev librime-data \
   libnotify-dev libgtk-3-dev libsecret-1-dev \
-  cmake gcc pkg-config \
-  python3
+  cmake gcc pkg-config cargo rustc
 ```
 
 ### Fedora
@@ -32,8 +31,7 @@ sudo dnf install \
   ibus ibus-devel \
   librime librime-devel rime-data \
   libnotify-devel gtk3-devel libsecret-devel \
-  cmake gcc pkg-config \
-  python3
+  cmake gcc pkg-config cargo rust
 ```
 
 ### Arch Linux
@@ -43,8 +41,7 @@ sudo pacman -S \
   ibus \
   librime rime-data \
   libnotify gtk3 libsecret \
-  cmake gcc pkg-config \
-  python
+  cmake gcc pkg-config rust
 ```
 
 ## 源码准备
@@ -63,6 +60,7 @@ git submodule update --init --recursive
 ```
 
 > 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。
+> WebDAV 同步命令来自共享的 `qiwo-sync-core`。在父仓库工作区中，默认会使用相邻的 `../qiwo-sync-core`；独立构建时可以使用 `--sync-core-dir` 指定源码目录，或用 `--sync-bin` 指定预构建的 `qiwo-rime-sync`。
 
 ## 编译
 
@@ -82,6 +80,12 @@ cd qiwo-ibusr
 # CMake 找不到 Rime 数据目录时手动指定
 ./install-linux.sh --rime-data-dir /usr/share/rime-data
 
+# 指定 qiwo-sync-core 源码目录构建共享同步命令
+./install-linux.sh --sync-core-dir ../qiwo-sync-core
+
+# 或指定预构建的共享同步命令
+./install-linux.sh --sync-bin /path/to/qiwo-rime-sync
+
 # 安装前运行 CTest
 ./install-linux.sh --run-tests
 ```
@@ -93,7 +97,7 @@ cd qiwo-ibusr
 
 # 配置（默认安装到 /usr）
 mkdir -p build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DQIWO_SYNC_CORE_DIR=../../qiwo-sync-core
 
 # 编译
 make
@@ -106,7 +110,7 @@ sudo make install
 
 ```
 /usr/lib/qiwo/ibus-engine-rime          # IBus 引擎可执行文件
-/usr/share/qiwo/qiwo-rime-sync          # WebDAV 同步命令
+/usr/share/qiwo/qiwo-rime-sync          # qiwo-sync-core 共享 WebDAV 同步命令
 /usr/bin/qiwo-webdav-settings           # WebDAV 图形设置窗口
 /usr/share/qiwo/icons/                   # 图标文件
 /usr/share/applications/qiwo-webdav-settings.desktop  # 桌面菜单入口
@@ -259,6 +263,8 @@ qiwo-rime-sync <mode> [options]
   sync                    双向同步（默认）
   push                    仅上传本地文件到远程
   pull                    仅从远程下载文件
+  init-frost              初始化/更新 rime-frost 方案文件
+  sync-user-dict          仅同步 Rime 用户词典快照
 
 选项:
   --rime-user-dir <dir>   Rime 用户数据目录（必填）
@@ -280,6 +286,28 @@ qiwo-rime-sync <mode> [options]
 | 冲突备份 | `~/.config/ibus/rime/.qiwo-sync/backups/` |
 | WebDAV 图形配置 | `~/.config/qiwo/webdav.conf` |
 | WebDAV 环境覆盖 | `QIWO_WEBDAV_URL`、`QIWO_WEBDAV_USERNAME`、`QIWO_WEBDAV_PASSWORD`、`QIWO_DEVICE_ID`、`QIWO_AUTO_SYNC_INTERVAL_MINUTES` |
+
+## 同步命令排障
+
+Linux 安装的 `qiwo-rime-sync` 应来自 `qiwo-sync-core`。可用以下命令确认：
+
+```bash
+/usr/share/qiwo/qiwo-rime-sync --help | grep -E 'init-frost|sync-user-dict'
+```
+
+如果安装时报 `qiwo-sync-core source tree was not found`，请确认父仓库已初始化子模块，或显式传入源码目录：
+
+```bash
+./install-linux.sh --sync-core-dir ../qiwo-sync-core
+```
+
+如果安装时报 `cargo was not found`，请安装 Rust/Cargo，或改用预构建命令：
+
+```bash
+./install-linux.sh --sync-bin /path/to/qiwo-rime-sync
+```
+
+如果机器上曾安装过旧的同步脚本，重新安装后确认 `/usr/share/qiwo/qiwo-rime-sync --help` 能看到 `init-frost` 或 `sync-user-dict`。看不到这些命令时，说明仍在运行旧文件，需要重新安装或检查安装前缀。
 
 ## 卸载
 
