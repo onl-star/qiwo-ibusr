@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+setup_script="$root/scripts/setup-linux-deps.sh"
 
 if grep -Eiq '\bpython3?\b' "$root/Makefile" "$root/INSTALL.md"; then
   echo "Python is still documented as a Linux sync runtime dependency" >&2
@@ -18,10 +19,29 @@ grep -Eiq '\b(Cargo|Rust)\b' "$root/INSTALL.md" || {
   exit 1
 }
 
-grep -Fq 'for pkg in ibus-1.0 rime libnotify gtk+-3.0 libsecret-1' "$root/Makefile" || {
-  echo "Makefile should check the rime pkg-config module, not a non-portable librime module" >&2
+grep -Fq 'bash scripts/setup-linux-deps.sh --need-cargo --need-git' "$root/Makefile" || {
+  echo "Makefile setup does not delegate to the shared Linux dependency checker" >&2
   exit 1
 }
+
+grep -Fq 'for pkg in ibus-1.0 rime libnotify gtk+-3.0 libsecret-1' "$setup_script" || {
+  echo "Linux dependency checker should check the rime pkg-config module, not a non-portable librime module" >&2
+  exit 1
+}
+
+for expected in cmake make pkg-config cargo rustc git; do
+  if ! grep -q -- "$expected" "$setup_script"; then
+    echo "Linux dependency checker does not verify $expected" >&2
+    exit 1
+  fi
+done
+
+for manager in apt apt-get dnf pacman zypper; do
+  if ! grep -q -- "$manager" "$setup_script"; then
+    echo "Linux dependency checker does not support $manager" >&2
+    exit 1
+  fi
+done
 
 if grep -q 'submodule update --init --recursive 2>/dev/null || true' "$root/Makefile"; then
   echo "Makefile setup should not initialize every submodule during Linux installs" >&2

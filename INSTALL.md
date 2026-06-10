@@ -86,7 +86,7 @@ cd qiwo-ibusr
 ./install-linux.sh
 ```
 
-脚本会在 apt/dnf/pacman/zypper 系发行版上自动安装系统依赖，初始化必需子模块，配置 CMake、编译、安装并重启 IBus。其他发行版请先按本机包管理器安装 IBus、librime、Rime 数据、GTK 3、libnotify、libsecret、CMake、pkg-config 和 Rust/Cargo。常用参数：
+脚本会在 apt/dnf/pacman/zypper 系发行版上自动安装系统依赖，初始化必需子模块，配置 CMake、编译、安装并重启 IBus。依赖检查覆盖 IBus、librime、Rime 数据、GTK 3、libnotify、libsecret、CMake、make、C 编译器、pkg-config，以及默认源码构建同步命令所需的 Rust/Cargo。其他发行版请先按本机包管理器安装这些依赖。常用参数：
 
 ```bash
 # 指定安装前缀

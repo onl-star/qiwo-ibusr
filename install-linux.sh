@@ -93,9 +93,28 @@ if [[ "$build_path" != /* ]]; then
   build_path="$script_dir/$build_path"
 fi
 
-if [[ $skip_setup -eq 0 ]]; then
-  make -C "$script_dir" setup
+need_cargo=1
+if [[ -n "$sync_bin" ]]; then
+  need_cargo=0
 fi
+
+need_git=0
+if [[ -f "$script_dir/.gitmodules" ]]; then
+  if [[ ! -e "$script_dir/rime-frost/rime_frost.schema.yaml" ]]; then
+    need_git=1
+  fi
+  if [[ -z "$sync_bin" && -z "$sync_core_dir" &&
+        ! -f "$script_dir/qiwo-sync-core/Cargo.toml" &&
+        ! -f "$script_dir/../qiwo-sync-core/Cargo.toml" ]]; then
+    need_git=1
+  fi
+fi
+
+setup_args=()
+[[ $need_cargo -eq 1 ]] && setup_args+=(--need-cargo)
+[[ $need_git -eq 1 ]] && setup_args+=(--need-git)
+[[ $skip_setup -eq 1 ]] && setup_args+=(--no-install)
+bash "$script_dir/scripts/setup-linux-deps.sh" "${setup_args[@]}"
 
 ensure_required_submodule() {
   local name="$1"

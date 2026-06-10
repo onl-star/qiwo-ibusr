@@ -16,6 +16,17 @@ for expected in \
   fi
 done
 
+for expected in \
+  'scripts/setup-linux-deps.sh' \
+  '--need-cargo' \
+  '--need-git' \
+  '--no-install'; do
+  if ! grep -q -- "$expected" <<<"$script_text"; then
+    echo "install-linux.sh does not wire dependency setup option: $expected" >&2
+    exit 1
+  fi
+done
+
 if ! grep -q 'git -C "$script_dir" submodule update --init --recursive "$name"' <<<"$script_text"; then
   echo "install-linux.sh does not auto-initialize required submodules by name" >&2
   exit 1
