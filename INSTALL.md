@@ -210,7 +210,9 @@ input:
   auto_commit_spacing: true
 ```
 
-需要关闭时，在用户 Rime 配置中覆盖 `input/auto_commit_spacing: false`，然后重新部署或重启输入法。Linux 端当前不强制依赖应用提供 surrounding text；拿不到光标前后文本时仍会对本次提交文本内部应用空格规则。
+也可以在 Rime 方案选单中切换：按 `Ctrl + \`` 或 `F4` 打开方案选单，切换 **中英数字自动空格**。通过方案选单切换的状态会被 Rime 记住，并立即影响后续上屏文本。
+
+需要设定默认值时，在用户 Rime 配置中覆盖 `input/auto_commit_spacing: false`，然后重新部署或重启输入法。Linux 端会优先使用方案选单保存的状态；没有保存状态时才使用 `input/auto_commit_spacing`，最后默认开启。Linux 端当前不强制依赖应用提供 surrounding text；拿不到光标前后文本时仍会对本次提交文本内部应用空格规则。
 
 ## 配置 WebDAV 同步
 

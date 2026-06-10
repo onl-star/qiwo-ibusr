@@ -10,6 +10,8 @@
 
 extern RimeApi *rime_api;
 
+#define QIWO_AUTO_COMMIT_SPACING_OPTION "auto_commit_spacing"
+
 typedef struct _IBusRimeEngine IBusRimeEngine;
 typedef struct _IBusRimeEngineClass IBusRimeEngineClass;
 
@@ -96,6 +98,9 @@ ibus_rime_create_session (IBusRimeEngine *rime_engine)
       g_ibus_rime_settings.preedit_style == PREEDIT_STYLE_COMPOSITION &&
       g_ibus_rime_settings.cursor_type == CURSOR_TYPE_INSERT;
   rime_api->set_option(rime_engine->session_id, "soft_cursor", !inline_caret);
+  rime_api->set_option(
+      rime_engine->session_id, QIWO_AUTO_COMMIT_SPACING_OPTION,
+      ibus_rime_get_initial_auto_commit_spacing_option());
 }
 
 static void
@@ -309,9 +314,11 @@ static void ibus_rime_engine_update(IBusRimeEngine *rime_engine)
   RIME_STRUCT(RimeCommit, commit);
   if (rime_api->get_commit(rime_engine->session_id, &commit)) {
     IBusText *text;
+    gboolean auto_commit_spacing_enabled =
+        !!rime_api->get_option(
+            rime_engine->session_id, QIWO_AUTO_COMMIT_SPACING_OPTION);
     gchar *formatted_commit_text = qiwo_input_format_bridge_format_commit_text(
-        commit.text, NULL, NULL,
-        g_ibus_rime_settings.auto_commit_spacing_enabled);
+        commit.text, NULL, NULL, auto_commit_spacing_enabled);
     text = ibus_text_new_from_string(formatted_commit_text);
     g_free(formatted_commit_text);
     // the text object will be released by ibus

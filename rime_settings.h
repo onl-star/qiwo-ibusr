@@ -39,4 +39,7 @@ extern struct IBusRimeSettings g_ibus_rime_settings;
 void
 ibus_rime_load_settings();
 
+gboolean
+ibus_rime_get_initial_auto_commit_spacing_option();
+
 #endif

@@ -332,6 +332,8 @@ if(BUILD_TESTING)
     ENVIRONMENT "QIWO_SYNC_CORE_DIR=${QIWO_SYNC_CORE_DIR}")
   add_test(NAME input_format_packaging
            COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_input_format_packaging.sh")
+  add_test(NAME switcher_auto_spacing_option
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_switcher_auto_spacing_option.sh")
 
   add_executable(test_qiwo_webdav_config
     tests/test_qiwo_webdav_config.c

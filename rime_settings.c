@@ -25,6 +25,7 @@ static struct IBusRimeSettings ibus_rime_settings_default = {
 };
 
 struct IBusRimeSettings g_ibus_rime_settings;
+static gboolean ibus_rime_settings_loaded = FALSE;
 
 static guint
 interval_minutes_to_seconds(guint interval_minutes)
@@ -58,6 +59,7 @@ void
 ibus_rime_load_settings()
 {
   g_ibus_rime_settings = ibus_rime_settings_default;
+  ibus_rime_settings_loaded = TRUE;
 
   RimeConfig config = {0};
   if (!rime_api->config_open("ibus_rime", &config)) {
@@ -134,4 +136,49 @@ ibus_rime_load_settings()
     g_ibus_rime_settings.auto_sync_interval_seconds =
       interval_minutes_to_seconds(webdav_interval_minutes);
   }
+}
+
+static gboolean
+ibus_rime_get_saved_auto_commit_spacing_option(gboolean *enabled)
+{
+  RimeConfig config = {0};
+  Bool saved_auto_commit_spacing = True;
+  Bool found = False;
+
+#ifdef RIME_API_AVAILABLE
+  if (!rime_api || !RIME_API_AVAILABLE(rime_api, user_config_open) ||
+      !rime_api->user_config_open("user", &config)) {
+    return FALSE;
+  }
+#else
+  if (!rime_api || !rime_api->config_open("user", &config)) {
+    return FALSE;
+  }
+#endif
+
+  found = rime_api->config_get_bool(
+      &config, "var/option/auto_commit_spacing",
+      &saved_auto_commit_spacing);
+  rime_api->config_close(&config);
+  if (!found) {
+    return FALSE;
+  }
+
+  *enabled = !!saved_auto_commit_spacing;
+  return TRUE;
+}
+
+gboolean
+ibus_rime_get_initial_auto_commit_spacing_option()
+{
+  gboolean enabled =
+      ibus_rime_settings_loaded ?
+      g_ibus_rime_settings.auto_commit_spacing_enabled :
+      ibus_rime_settings_default.auto_commit_spacing_enabled;
+
+  if (ibus_rime_get_saved_auto_commit_spacing_option(&enabled)) {
+    return enabled;
+  }
+
+  return enabled;
 }
