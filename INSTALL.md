@@ -198,7 +198,7 @@ qiwo-webdav-settings
 
 切换到齐我输入法后，如果当前桌面显示 IBus 属性菜单，也可以在 IBus 输入法面板中点击 **「WebDAV 设置」**。填写 WebDAV Server URL、Remote Path、用户名、密码、设备标识和自动同步间隔，然后点击保存。
 
-图形设置和 Windows/macOS 保持一致：Server URL 是 WebDAV 账号或目录的基础地址，Remote Path 是齐我同步目录，默认值为 `qiwo-rime-sync`。例如：
+图形设置的地址格式和 Windows/macOS 保持一致：Server URL 是 WebDAV 账号或目录的基础地址，Remote Path 是齐我同步目录，默认值为 `qiwo-rime-sync`。例如：
 
 ```text
 Server URL:  https://dav.example.com/remote.php/dav/files/username
@@ -211,10 +211,12 @@ Remote Path: qiwo-rime-sync
 https://dav.example.com/remote.php/dav/files/username/qiwo-rime-sync
 ```
 
-设置窗口还提供 **测试连接** 和 **立即同步**：
+设置窗口还提供 **测试连接** 和 **同步配置**：
 
 - **测试连接** 使用当前窗口内容执行一次 dry-run，不会修改远端或本地数据。
-- **立即同步** 使用当前有效配置执行同步，并在窗口中显示结果或失败原因。
+- **同步配置** 使用当前有效配置同步 Rime 配置文件，并在窗口中显示结果或失败原因。
+
+用户词库同步必须通过 IBus 输入法面板中的 **「WebDAV 同步」** 或自动同步触发。这个路径会先调用 Rime 的 `sync_user_data()` 导出词库到 `sync/<device-id>/`，再通过 `qiwo-sync-core` 同步，成功后再次调用 `sync_user_data()` 导入合并结果。独立设置窗口没有 Rime API 句柄，因此不会直接同步 `.userdb` 词库。
 
 密码优先保存到桌面 Secret Service（例如 GNOME Keyring、KWallet 兼容服务）。如果当前桌面没有可用的 Secret Service，会回退写入 `~/.config/qiwo/webdav.conf`，文件权限会设置为 `0600`，设置窗口会显示当前密码存储模式。
 
@@ -250,7 +252,7 @@ export QIWO_AUTO_SYNC_INTERVAL_MINUTES="30"
 
 在 IBus 输入法面板中，点击齐我输入法旁边的 **「WebDAV 同步」** 按钮（同步图标）。
 
-同步完成后，结果会通过桌面通知显示。
+该入口和 Windows/macOS 的完整同步流程一致，会同步配置文件和 Rime 导出的用户词库快照。同步完成后，结果会通过桌面通知显示。
 
 ### 命令行测试
 

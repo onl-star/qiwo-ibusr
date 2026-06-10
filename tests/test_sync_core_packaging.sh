@@ -38,6 +38,16 @@ if [[ "$run_sync_calls" -lt 2 ]]; then
   exit 1
 fi
 
+grep -q 'Sync Config Now' "$settings_file" || {
+  echo "settings window should label standalone sync as configuration-only" >&2
+  exit 1
+}
+
+grep -q 'User dictionaries require the IBus panel WebDAV Sync action' "$settings_file" || {
+  echo "settings window should explain that user dictionary sync runs through the IBus panel" >&2
+  exit 1
+}
+
 grep -q 'ibus_rime_sync_user_data();' "$rime_main_file" || {
   echo "auto-sync or panel path no longer calls ibus_rime_sync_user_data" >&2
   exit 1

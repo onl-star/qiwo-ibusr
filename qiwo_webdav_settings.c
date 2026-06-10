@@ -75,8 +75,10 @@ build_window(SettingsWidgets *widgets)
   gtk_widget_set_hexpand(widgets->override_label, TRUE);
   gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 7, 3, 1);
 
-  widgets->status_label = gtk_label_new("Configure WebDAV sync settings.");
+  widgets->status_label = gtk_label_new(
+      "Configure WebDAV sync settings. Use the IBus panel WebDAV Sync for user dictionaries.");
   gtk_label_set_xalign(GTK_LABEL(widgets->status_label), 0.0);
+  gtk_label_set_line_wrap(GTK_LABEL(widgets->status_label), TRUE);
   gtk_widget_set_hexpand(widgets->status_label, TRUE);
   gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 8, 3, 1);
 
@@ -86,7 +88,10 @@ build_window(SettingsWidgets *widgets)
 
   widgets->save_button = gtk_button_new_with_label("Save");
   widgets->test_button = gtk_button_new_with_label("Test Connection");
-  widgets->sync_button = gtk_button_new_with_label("Sync Now");
+  widgets->sync_button = gtk_button_new_with_label("Sync Config Now");
+  gtk_widget_set_tooltip_text(
+      widgets->sync_button,
+      "Synchronize Rime configuration files. User dictionaries require the IBus panel WebDAV Sync action.");
   gtk_container_add(GTK_CONTAINER(button_box), widgets->save_button);
   gtk_container_add(GTK_CONTAINER(button_box), widgets->test_button);
   gtk_container_add(GTK_CONTAINER(button_box), widgets->sync_button);
@@ -362,10 +367,10 @@ sync_now(GtkButton *button, gpointer user_data)
     if (result.stdout_text && result.stdout_text[0]) {
       g_autofree gchar *summary = g_strdup(result.stdout_text);
       g_strstrip(summary);
-      g_autofree gchar *message = g_strdup_printf("Sync completed: %s", summary);
+      g_autofree gchar *message = g_strdup_printf("Config sync completed: %s", summary);
       gtk_label_set_text(GTK_LABEL(widgets->status_label), message);
     } else {
-      gtk_label_set_text(GTK_LABEL(widgets->status_label), "Sync completed.");
+      gtk_label_set_text(GTK_LABEL(widgets->status_label), "Config sync completed.");
     }
   } else if (g_error_matches(error, QIWO_SYNC_COMMAND_ERROR,
                              QIWO_SYNC_COMMAND_ERROR_TOOL_NOT_FOUND)) {
