@@ -334,10 +334,7 @@ rime_sync_context_init(RimeSyncContext *context,
   RIME_STRUCT(RimeTraits, setup_traits);
   fill_rime_traits(&setup_traits, rime_user_dir);
   context->api->setup(&setup_traits);
-
-  RIME_STRUCT(RimeTraits, traits);
-  fill_rime_traits(&traits, rime_user_dir);
-  context->api->initialize(&traits);
+  context->api->deployer_initialize(NULL);
   context->initialized = TRUE;
   return TRUE;
 }
@@ -369,6 +366,7 @@ rime_sync_user_data_hook(gpointer user_data, GError **error)
                 "Rime sync_user_data failed.");
     return FALSE;
   }
+  context->api->join_maintenance_thread();
 
   return TRUE;
 }

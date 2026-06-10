@@ -58,6 +58,21 @@ grep -q 'qiwo_sync_command_run_full_sync' "$settings_file" || {
   exit 1
 }
 
+grep -q 'deployer_initialize(NULL)' "$settings_file" || {
+  echo "settings Sync Now should load librime deployer modules before sync_user_data" >&2
+  exit 1
+}
+
+if grep -q 'api->initialize' "$settings_file"; then
+  echo "settings Sync Now should not initialize a full librime service" >&2
+  exit 1
+fi
+
+grep -q 'join_maintenance_thread' "$settings_file" || {
+  echo "settings Sync Now should wait for librime user dictionary export/import" >&2
+  exit 1
+}
+
 grep -q 'ibus_rime_sync_user_data();' "$rime_main_file" || {
   echo "auto-sync or panel path no longer calls ibus_rime_sync_user_data" >&2
   exit 1
