@@ -136,6 +136,61 @@ test_run_reports_missing_tool(void)
   qiwo_effective_webdav_settings_clear(&settings);
 }
 
+typedef struct {
+  guint export_calls;
+  guint import_calls;
+} FullSyncHookState;
+
+static gboolean
+count_export_hook(gpointer user_data, GError **error)
+{
+  (void)error;
+  FullSyncHookState *state = user_data;
+  state->export_calls++;
+  return TRUE;
+}
+
+static gboolean
+count_import_hook(gpointer user_data, GError **error)
+{
+  (void)error;
+  FullSyncHookState *state = user_data;
+  state->import_calls++;
+  return TRUE;
+}
+
+static void
+test_full_sync_runs_export_and_import_hooks(void)
+{
+  g_autofree gchar *tmp_dir = g_dir_make_tmp("qiwo-sync-command-XXXXXX", NULL);
+  g_autofree gchar *tool = g_build_filename(tmp_dir, "qiwo-rime-sync", NULL);
+  g_assert_true(g_file_set_contents(tool, "#!/bin/sh\nexit 0\n", -1, NULL));
+  g_assert_cmpint(g_chmod(tool, 0700), ==, 0);
+
+  QiwoEffectiveWebDavSettings settings = make_effective_settings();
+  QiwoSyncCommandResult result;
+  qiwo_sync_command_result_init(&result);
+  FullSyncHookState hook_state = {0, 0};
+
+  qiwo_sync_command_set_tool_path_for_tests(tool);
+  g_autoptr(GError) error = NULL;
+  g_assert_true(qiwo_sync_command_run_full_sync(
+      "/home/me/.config/ibus/rime",
+      &settings,
+      count_export_hook,
+      count_import_hook,
+      &hook_state,
+      &result,
+      &error));
+  g_assert_no_error(error);
+  g_assert_cmpuint(hook_state.export_calls, ==, 1);
+  g_assert_cmpuint(hook_state.import_calls, ==, 1);
+
+  qiwo_sync_command_reset_tool_path_for_tests();
+  qiwo_sync_command_result_clear(&result);
+  qiwo_effective_webdav_settings_clear(&settings);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -151,6 +206,8 @@ main(int argc, char **argv)
                   test_find_tool_uses_executable_override);
   g_test_add_func("/qiwo/sync-command/run-reports-missing-tool",
                   test_run_reports_missing_tool);
+  g_test_add_func("/qiwo/sync-command/full-sync-runs-export-and-import-hooks",
+                  test_full_sync_runs_export_and_import_hooks);
 
   return g_test_run();
 }

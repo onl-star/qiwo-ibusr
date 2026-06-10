@@ -21,6 +21,16 @@ grep -q 'QIWO_SYNC_CORE_DIR' "$cmake_file" || {
   exit 1
 }
 
+grep -q 'qiwo_rime_default_config.c' "$cmake_file" || {
+  echo "qiwo-webdav-settings does not include Rime default config support" >&2
+  exit 1
+}
+
+grep -q 'target_link_libraries(qiwo-webdav-settings .*Rime' "$cmake_file" || {
+  echo "qiwo-webdav-settings is not linked with librime for full Sync Now" >&2
+  exit 1
+}
+
 grep -q 'qiwo-sync-core/Cargo.toml' "$cmake_file" || {
   echo "CMake does not prefer the bundled qiwo-sync-core submodule" >&2
   exit 1
@@ -33,18 +43,18 @@ if [[ "$sync_user_calls" -lt 2 ]]; then
 fi
 
 run_sync_calls="$(grep -c 'qiwo_sync_command_run_sync' "$settings_file" || true)"
-if [[ "$run_sync_calls" -lt 2 ]]; then
-  echo "settings Test Connection and Sync Now no longer use qiwo_sync_command_run_sync" >&2
+if [[ "$run_sync_calls" -lt 1 ]]; then
+  echo "settings Test Connection no longer uses qiwo_sync_command_run_sync" >&2
   exit 1
 fi
 
-grep -q 'Sync Config Now' "$settings_file" || {
-  echo "settings window should label standalone sync as configuration-only" >&2
+grep -q 'Sync Now' "$settings_file" || {
+  echo "settings window should expose full Sync Now action" >&2
   exit 1
 }
 
-grep -q 'User dictionaries require the IBus panel WebDAV Sync action' "$settings_file" || {
-  echo "settings window should explain that user dictionary sync runs through the IBus panel" >&2
+grep -q 'qiwo_sync_command_run_full_sync' "$settings_file" || {
+  echo "settings Sync Now should use the full sync flow with Rime user dictionary hooks" >&2
   exit 1
 }
 

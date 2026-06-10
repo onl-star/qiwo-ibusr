@@ -211,12 +211,10 @@ Remote Path: qiwo-rime-sync
 https://dav.example.com/remote.php/dav/files/username/qiwo-rime-sync
 ```
 
-设置窗口还提供 **测试连接** 和 **同步配置**：
+设置窗口还提供 **测试连接** 和 **立即同步**：
 
 - **测试连接** 使用当前窗口内容执行一次 dry-run，不会修改远端或本地数据。
-- **同步配置** 使用当前有效配置同步 Rime 配置文件，并在窗口中显示结果或失败原因。
-
-用户词库同步必须通过 IBus 输入法面板中的 **「WebDAV 同步」** 或自动同步触发。这个路径会先调用 Rime 的 `sync_user_data()` 导出词库到 `sync/<device-id>/`，再通过 `qiwo-sync-core` 同步，成功后再次调用 `sync_user_data()` 导入合并结果。独立设置窗口没有 Rime API 句柄，因此不会直接同步 `.userdb` 词库。
+- **立即同步** 使用当前有效配置执行完整同步，并在窗口中显示结果或失败原因。完整同步会先调用 Rime 的 `sync_user_data()` 导出词库到 `sync/<device-id>/`，再通过 `qiwo-sync-core` 同步配置文件和词库快照，成功后再次调用 `sync_user_data()` 导入合并结果。
 
 密码优先保存到桌面 Secret Service（例如 GNOME Keyring、KWallet 兼容服务）。如果当前桌面没有可用的 Secret Service，会回退写入 `~/.config/qiwo/webdav.conf`，文件权限会设置为 `0600`，设置窗口会显示当前密码存储模式。
 

@@ -164,3 +164,28 @@ qiwo_sync_command_run_sync(const gchar *rime_user_dir,
 
   return TRUE;
 }
+
+gboolean
+qiwo_sync_command_run_full_sync(const gchar *rime_user_dir,
+                                const QiwoEffectiveWebDavSettings *settings,
+                                QiwoSyncCommandHook export_hook,
+                                QiwoSyncCommandHook import_hook,
+                                gpointer hook_user_data,
+                                QiwoSyncCommandResult *result,
+                                GError **error)
+{
+  if (export_hook && !export_hook(hook_user_data, error)) {
+    return FALSE;
+  }
+
+  if (!qiwo_sync_command_run_sync(
+          rime_user_dir, settings, FALSE, result, error)) {
+    return FALSE;
+  }
+
+  if (import_hook && !import_hook(hook_user_data, error)) {
+    return FALSE;
+  }
+
+  return TRUE;
+}

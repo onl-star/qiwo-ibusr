@@ -11,7 +11,8 @@ typedef enum {
   QIWO_SYNC_COMMAND_ERROR_TOOL_NOT_FOUND,
   QIWO_SYNC_COMMAND_ERROR_INVALID_SETTINGS,
   QIWO_SYNC_COMMAND_ERROR_SPAWN_FAILED,
-  QIWO_SYNC_COMMAND_ERROR_EXIT_FAILED
+  QIWO_SYNC_COMMAND_ERROR_EXIT_FAILED,
+  QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED
 } QiwoSyncCommandError;
 
 #define QIWO_SYNC_COMMAND_ERROR (qiwo_sync_command_error_quark())
@@ -21,6 +22,8 @@ typedef struct {
   gchar *stdout_text;
   gchar *stderr_text;
 } QiwoSyncCommandResult;
+
+typedef gboolean (*QiwoSyncCommandHook)(gpointer user_data, GError **error);
 
 GQuark qiwo_sync_command_error_quark(void);
 
@@ -37,6 +40,13 @@ gboolean qiwo_sync_command_run_sync(const gchar *rime_user_dir,
                                     gboolean dry_run,
                                     QiwoSyncCommandResult *result,
                                     GError **error);
+gboolean qiwo_sync_command_run_full_sync(const gchar *rime_user_dir,
+                                         const QiwoEffectiveWebDavSettings *settings,
+                                         QiwoSyncCommandHook export_hook,
+                                         QiwoSyncCommandHook import_hook,
+                                         gpointer hook_user_data,
+                                         QiwoSyncCommandResult *result,
+                                         GError **error);
 
 void qiwo_sync_command_set_tool_path_for_tests(const gchar *tool_path);
 void qiwo_sync_command_reset_tool_path_for_tests(void);

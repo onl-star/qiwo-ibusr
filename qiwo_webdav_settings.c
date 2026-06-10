@@ -1,7 +1,13 @@
 #include <gtk/gtk.h>
+#include <rime_api.h>
 
+#include "qiwo_rime_default_config.h"
 #include "qiwo_sync_command.h"
 #include "qiwo_webdav_config.h"
+#include "rime_config.h"
+
+#define QIWO_DISTRIBUTION_NAME "齐我输入法"
+#define QIWO_DISTRIBUTION_CODE_NAME "qiwo"
 
 typedef struct {
   GtkWidget *window;
@@ -18,6 +24,11 @@ typedef struct {
   GtkWidget *test_button;
   GtkWidget *sync_button;
 } SettingsWidgets;
+
+typedef struct {
+  RimeApi *api;
+  gboolean initialized;
+} RimeSyncContext;
 
 static GtkWidget *
 add_labeled_entry(GtkGrid *grid,
@@ -75,8 +86,7 @@ build_window(SettingsWidgets *widgets)
   gtk_widget_set_hexpand(widgets->override_label, TRUE);
   gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 7, 3, 1);
 
-  widgets->status_label = gtk_label_new(
-      "Configure WebDAV sync settings. Use the IBus panel WebDAV Sync for user dictionaries.");
+  widgets->status_label = gtk_label_new("Configure WebDAV sync settings.");
   gtk_label_set_xalign(GTK_LABEL(widgets->status_label), 0.0);
   gtk_label_set_line_wrap(GTK_LABEL(widgets->status_label), TRUE);
   gtk_widget_set_hexpand(widgets->status_label, TRUE);
@@ -88,10 +98,10 @@ build_window(SettingsWidgets *widgets)
 
   widgets->save_button = gtk_button_new_with_label("Save");
   widgets->test_button = gtk_button_new_with_label("Test Connection");
-  widgets->sync_button = gtk_button_new_with_label("Sync Config Now");
+  widgets->sync_button = gtk_button_new_with_label("Sync Now");
   gtk_widget_set_tooltip_text(
       widgets->sync_button,
-      "Synchronize Rime configuration files. User dictionaries require the IBus panel WebDAV Sync action.");
+      "Synchronize Rime configuration files and user dictionaries.");
   gtk_container_add(GTK_CONTAINER(button_box), widgets->save_button);
   gtk_container_add(GTK_CONTAINER(button_box), widgets->test_button);
   gtk_container_add(GTK_CONTAINER(button_box), widgets->sync_button);
@@ -293,6 +303,77 @@ get_rime_user_dir(void)
 }
 
 static void
+fill_rime_traits(RimeTraits *traits, const gchar *rime_user_dir)
+{
+  traits->shared_data_dir = IBUS_RIME_SHARED_DATA_DIR;
+  traits->user_data_dir = rime_user_dir;
+  traits->distribution_name = QIWO_DISTRIBUTION_NAME;
+  traits->distribution_code_name = QIWO_DISTRIBUTION_CODE_NAME;
+  traits->distribution_version = QIWO_IBUS_VERSION;
+  traits->app_name = "rime.qiwo.settings";
+}
+
+static gboolean
+rime_sync_context_init(RimeSyncContext *context,
+                       const gchar *rime_user_dir,
+                       GError **error)
+{
+  if (!qiwo_rime_default_config_ensure(
+          rime_user_dir, NULL, error)) {
+    return FALSE;
+  }
+
+  context->api = rime_get_api();
+  if (!context->api) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Unable to load librime API.");
+    return FALSE;
+  }
+
+  RIME_STRUCT(RimeTraits, setup_traits);
+  fill_rime_traits(&setup_traits, rime_user_dir);
+  context->api->setup(&setup_traits);
+
+  RIME_STRUCT(RimeTraits, traits);
+  fill_rime_traits(&traits, rime_user_dir);
+  context->api->initialize(&traits);
+  context->initialized = TRUE;
+  return TRUE;
+}
+
+static void
+rime_sync_context_clear(RimeSyncContext *context)
+{
+  if (context->initialized && context->api) {
+    context->api->finalize();
+  }
+  context->api = NULL;
+  context->initialized = FALSE;
+}
+
+static gboolean
+rime_sync_user_data_hook(gpointer user_data, GError **error)
+{
+  RimeSyncContext *context = user_data;
+  if (!context || !context->api || !context->initialized) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Rime is not initialized.");
+    return FALSE;
+  }
+
+  if (!context->api->sync_user_data()) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Rime sync_user_data failed.");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static void
 set_action_buttons_sensitive(SettingsWidgets *widgets, gboolean sensitive)
 {
   gtk_widget_set_sensitive(widgets->save_button, sensitive);
@@ -358,19 +439,29 @@ sync_now(GtkButton *button, gpointer user_data)
   QiwoSyncCommandResult result;
   qiwo_sync_command_result_init(&result);
   g_autofree gchar *rime_user_dir = get_rime_user_dir();
+  RimeSyncContext rime_context = {0};
 
   set_action_buttons_sensitive(widgets, FALSE);
   GError *error = NULL;
-  gboolean ok = qiwo_sync_command_run_sync(
-      rime_user_dir, &settings, FALSE, &result, &error);
+  gboolean ok = rime_sync_context_init(&rime_context, rime_user_dir, &error);
+  if (ok) {
+    ok = qiwo_sync_command_run_full_sync(
+        rime_user_dir,
+        &settings,
+        rime_sync_user_data_hook,
+        rime_sync_user_data_hook,
+        &rime_context,
+        &result,
+        &error);
+  }
   if (ok) {
     if (result.stdout_text && result.stdout_text[0]) {
       g_autofree gchar *summary = g_strdup(result.stdout_text);
       g_strstrip(summary);
-      g_autofree gchar *message = g_strdup_printf("Config sync completed: %s", summary);
+      g_autofree gchar *message = g_strdup_printf("Sync completed: %s", summary);
       gtk_label_set_text(GTK_LABEL(widgets->status_label), message);
     } else {
-      gtk_label_set_text(GTK_LABEL(widgets->status_label), "Config sync completed.");
+      gtk_label_set_text(GTK_LABEL(widgets->status_label), "Sync completed.");
     }
   } else if (g_error_matches(error, QIWO_SYNC_COMMAND_ERROR,
                              QIWO_SYNC_COMMAND_ERROR_TOOL_NOT_FOUND)) {
@@ -389,6 +480,7 @@ sync_now(GtkButton *button, gpointer user_data)
   }
   set_action_buttons_sensitive(widgets, TRUE);
 
+  rime_sync_context_clear(&rime_context);
   qiwo_sync_command_result_clear(&result);
   qiwo_effective_webdav_settings_clear(&settings);
 }
