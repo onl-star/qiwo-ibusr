@@ -57,6 +57,7 @@ test_environment_overrides_saved_values(void)
   QiwoWebDavSettings saved;
   qiwo_webdav_settings_init(&saved);
   saved.url = g_strdup("https://saved.example.com/dav");
+  saved.remote_path = g_strdup("saved-path");
   saved.username = g_strdup("saved-user");
   saved.password = g_strdup("saved-password");
   saved.device_id = g_strdup("saved-device");
@@ -77,7 +78,9 @@ test_environment_overrides_saved_values(void)
   g_assert_true(qiwo_webdav_config_load_effective(&effective, &error));
   g_assert_no_error(error);
 
-  g_assert_cmpstr(effective.url, ==, "https://env.example.com/dav");
+  g_assert_cmpstr(effective.url, ==, "https://saved.example.com/dav");
+  g_assert_cmpstr(effective.remote_path, ==, "saved-path");
+  g_assert_cmpstr(effective.full_remote_url, ==, "https://env.example.com/dav");
   g_assert_cmpstr(effective.username, ==, "env-user");
   g_assert_cmpstr(effective.password, ==, "env-password");
   g_assert_cmpstr(effective.device_id, ==, "env-device");
@@ -108,6 +111,7 @@ test_required_field_validation(void)
 
   g_clear_error(&error);
   effective.url = g_strdup("https://dav.example.com/qiwo-rime-sync");
+  effective.full_remote_url = g_strdup("https://dav.example.com/qiwo-rime-sync");
   g_assert_true(qiwo_webdav_effective_settings_validate(&effective, &error));
   g_assert_no_error(error);
 
@@ -122,6 +126,7 @@ test_fallback_file_mode_is_user_only(void)
   QiwoWebDavSettings saved;
   qiwo_webdav_settings_init(&saved);
   saved.url = g_strdup("https://saved.example.com/dav");
+  saved.remote_path = g_strdup("saved-path");
   saved.username = g_strdup("saved-user");
   saved.password = g_strdup("saved-password");
   saved.device_id = g_strdup("saved-device");
@@ -155,6 +160,7 @@ test_delete_password_removes_local_fallback(void)
   QiwoWebDavSettings saved;
   qiwo_webdav_settings_init(&saved);
   saved.url = g_strdup("https://saved.example.com/dav");
+  saved.remote_path = g_strdup("saved-path");
   saved.username = g_strdup("saved-user");
   saved.password = g_strdup("saved-password");
   saved.device_id = g_strdup("saved-device");
@@ -185,6 +191,7 @@ test_effective_auto_sync_interval_lookup(void)
   QiwoWebDavSettings saved;
   qiwo_webdav_settings_init(&saved);
   saved.url = g_strdup("https://saved.example.com/dav");
+  saved.remote_path = g_strdup("saved-path");
   saved.username = g_strdup("saved-user");
   saved.password = g_strdup("saved-password");
   saved.device_id = g_strdup("saved-device");
@@ -224,6 +231,82 @@ test_effective_auto_sync_interval_lookup(void)
   teardown_config_home();
 }
 
+static void
+test_default_remote_path_and_full_remote_url(void)
+{
+  setup_config_home();
+
+  QiwoWebDavSettings saved;
+  qiwo_webdav_settings_init(&saved);
+  saved.url = g_strdup("https://dav.example.com/remote.php/dav/files/me");
+  saved.username = g_strdup("saved-user");
+  saved.password = g_strdup("saved-password");
+  saved.device_id = g_strdup("saved-device");
+
+  g_autoptr(GError) error = NULL;
+  g_assert_true(qiwo_webdav_config_save(&saved, &error));
+  g_assert_no_error(error);
+
+  QiwoEffectiveWebDavSettings effective;
+  qiwo_effective_webdav_settings_init(&effective);
+  g_assert_true(qiwo_webdav_config_load_effective(&effective, &error));
+  g_assert_no_error(error);
+
+  g_assert_cmpstr(effective.remote_path, ==, QIWO_WEBDAV_DEFAULT_REMOTE_PATH);
+  g_assert_cmpstr(effective.full_remote_url, ==,
+                  "https://dav.example.com/remote.php/dav/files/me/qiwo-rime-sync");
+
+  qiwo_effective_webdav_settings_clear(&effective);
+  qiwo_webdav_settings_clear(&saved);
+  teardown_config_home();
+}
+
+static void
+test_saved_remote_path_round_trip(void)
+{
+  setup_config_home();
+
+  QiwoWebDavSettings saved;
+  qiwo_webdav_settings_init(&saved);
+  saved.url = g_strdup("https://dav.example.com/base/");
+  saved.remote_path = g_strdup("/custom/qiwo");
+  saved.username = g_strdup("saved-user");
+  saved.password = g_strdup("saved-password");
+  saved.device_id = g_strdup("saved-device");
+
+  g_autoptr(GError) error = NULL;
+  g_assert_true(qiwo_webdav_config_save(&saved, &error));
+  g_assert_no_error(error);
+
+  QiwoWebDavSettings loaded;
+  qiwo_webdav_settings_init(&loaded);
+  g_assert_true(qiwo_webdav_config_load(&loaded, &error));
+  g_assert_no_error(error);
+  g_assert_cmpstr(loaded.remote_path, ==, "custom/qiwo");
+
+  QiwoEffectiveWebDavSettings effective;
+  qiwo_effective_webdav_settings_init(&effective);
+  g_assert_true(qiwo_webdav_config_load_effective(&effective, &error));
+  g_assert_no_error(error);
+  g_assert_cmpstr(effective.full_remote_url, ==,
+                  "https://dav.example.com/base/custom/qiwo");
+
+  qiwo_effective_webdav_settings_clear(&effective);
+  qiwo_webdav_settings_clear(&loaded);
+  qiwo_webdav_settings_clear(&saved);
+  teardown_config_home();
+}
+
+static void
+test_remote_path_absolute_url_builds_full_remote_url(void)
+{
+  g_autofree gchar *full_url = qiwo_webdav_config_build_full_remote_url(
+      "https://saved.example.com/base",
+      "https://dav.example.com/absolute/qiwo");
+
+  g_assert_cmpstr(full_url, ==, "https://dav.example.com/absolute/qiwo");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -240,6 +323,12 @@ main(int argc, char **argv)
                   test_delete_password_removes_local_fallback);
   g_test_add_func("/qiwo/webdav-config/effective-auto-sync-interval-lookup",
                   test_effective_auto_sync_interval_lookup);
+  g_test_add_func("/qiwo/webdav-config/default-remote-path-and-full-remote-url",
+                  test_default_remote_path_and_full_remote_url);
+  g_test_add_func("/qiwo/webdav-config/saved-remote-path-round-trip",
+                  test_saved_remote_path_round_trip);
+  g_test_add_func("/qiwo/webdav-config/remote-path-absolute-url-builds-full-remote-url",
+                  test_remote_path_absolute_url_builds_full_remote_url);
 
   return g_test_run();
 }

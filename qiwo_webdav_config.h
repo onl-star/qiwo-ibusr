@@ -28,9 +28,11 @@ typedef enum {
 #define QIWO_WEBDAV_ENV_PASSWORD "QIWO_WEBDAV_PASSWORD"
 #define QIWO_WEBDAV_ENV_DEVICE_ID "QIWO_DEVICE_ID"
 #define QIWO_WEBDAV_ENV_AUTO_SYNC_INTERVAL "QIWO_AUTO_SYNC_INTERVAL_MINUTES"
+#define QIWO_WEBDAV_DEFAULT_REMOTE_PATH "qiwo-rime-sync"
 
 typedef struct {
   gchar *url;
+  gchar *remote_path;
   gchar *username;
   gchar *password;
   gchar *device_id;
@@ -40,6 +42,8 @@ typedef struct {
 
 typedef struct {
   gchar *url;
+  gchar *remote_path;
+  gchar *full_remote_url;
   gchar *username;
   gchar *password;
   gchar *device_id;
@@ -66,6 +70,8 @@ gboolean qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **er
 gboolean qiwo_webdav_config_delete_password(GError **error);
 gboolean qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
                                            GError **error);
+gchar *qiwo_webdav_config_build_full_remote_url(const gchar *server_url,
+                                                const gchar *remote_path);
 guint qiwo_webdav_config_get_effective_auto_sync_interval_minutes(
     gboolean *overridden,
     GError **error);

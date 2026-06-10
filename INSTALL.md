@@ -165,7 +165,20 @@ WebDAV 同步可以在图形窗口中配置。可以从桌面应用菜单搜索 
 qiwo-webdav-settings
 ```
 
-切换到齐我输入法后，如果当前桌面显示 IBus 属性菜单，也可以在 IBus 输入法面板中点击 **「WebDAV 设置」**。填写 URL、用户名、密码、设备标识和自动同步间隔，然后点击保存。
+切换到齐我输入法后，如果当前桌面显示 IBus 属性菜单，也可以在 IBus 输入法面板中点击 **「WebDAV 设置」**。填写 WebDAV Server URL、Remote Path、用户名、密码、设备标识和自动同步间隔，然后点击保存。
+
+图形设置和 Windows/macOS 保持一致：Server URL 是 WebDAV 账号或目录的基础地址，Remote Path 是齐我同步目录，默认值为 `qiwo-rime-sync`。例如：
+
+```text
+Server URL:  https://dav.example.com/remote.php/dav/files/username
+Remote Path: qiwo-rime-sync
+```
+
+同步命令实际使用的完整远端目录 URL 会拼成：
+
+```text
+https://dav.example.com/remote.php/dav/files/username/qiwo-rime-sync
+```
 
 设置窗口还提供 **测试连接** 和 **立即同步**：
 
@@ -177,7 +190,7 @@ qiwo-webdav-settings
 环境变量仍然可用，并且优先级高于图形保存的配置。需要临时覆盖或继续使用脚本配置时，在 shell 配置文件（`~/.bashrc`、`~/.zshrc` 或 `~/.profile`）中添加：
 
 ```bash
-# WebDAV 服务器地址（必填）
+# 完整 WebDAV 远端目录 URL；这是兼容旧版脚本的覆盖入口
 export QIWO_WEBDAV_URL="https://dav.example.com/qiwo-rime-sync"
 
 # 凭据（如需要）
@@ -249,7 +262,7 @@ qiwo-rime-sync <mode> [options]
 
 选项:
   --rime-user-dir <dir>   Rime 用户数据目录（必填）
-  --remote-url <url>      WebDAV 服务器 URL（必填）
+  --remote-url <url>      完整 WebDAV 远端目录 URL（必填）
   --username <name>       WebDAV Basic Auth 用户名
   --password <pw>         WebDAV 密码（不推荐在命令行中明文传递）
   --password-env <var>    从环境变量读取密码（推荐）

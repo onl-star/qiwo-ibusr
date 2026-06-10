@@ -4,12 +4,17 @@ config_version: '1.0'
 
 # WebDAV sync configuration.
 # Open "WebDAV 设置" from the IBus panel, or run:
-#   /usr/share/qiwo/qiwo-webdav-settings
+#   qiwo-webdav-settings
 #
 # Saved graphical settings live in:
 #   ~/.config/qiwo/webdav.conf
 #
-# Environment variables override saved graphical settings:
+# Graphical settings use a WebDAV server URL plus a remote path.
+# The remote path defaults to:
+#   qiwo-rime-sync
+#
+# Environment variables override saved graphical settings. QIWO_WEBDAV_URL is
+# the complete remote directory URL passed to the sync command:
 #   export QIWO_WEBDAV_URL="https://dav.example.com/qiwo-rime-sync"
 #   export QIWO_WEBDAV_USERNAME="username"
 #   export QIWO_WEBDAV_PASSWORD="password"

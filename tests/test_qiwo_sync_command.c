@@ -8,7 +8,9 @@ make_effective_settings(void)
 {
   QiwoEffectiveWebDavSettings settings;
   qiwo_effective_webdav_settings_init(&settings);
-  settings.url = g_strdup("https://dav.example.com/qiwo path?x=1&y=2");
+  settings.url = g_strdup("https://dav.example.com");
+  settings.remote_path = g_strdup("qiwo path?x=1&y=2");
+  settings.full_remote_url = g_strdup("https://dav.example.com/qiwo path?x=1&y=2");
   settings.username = g_strdup("user name");
   settings.password = g_strdup("secret value");
   settings.device_id = g_strdup("linux main");

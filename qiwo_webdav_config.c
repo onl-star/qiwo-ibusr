@@ -46,6 +46,7 @@ qiwo_webdav_settings_clear(QiwoWebDavSettings *settings)
 {
   if (!settings) return;
   g_clear_pointer(&settings->url, g_free);
+  g_clear_pointer(&settings->remote_path, g_free);
   g_clear_pointer(&settings->username, g_free);
   g_clear_pointer(&settings->password, g_free);
   g_clear_pointer(&settings->device_id, g_free);
@@ -66,6 +67,8 @@ qiwo_effective_webdav_settings_clear(QiwoEffectiveWebDavSettings *settings)
 {
   if (!settings) return;
   g_clear_pointer(&settings->url, g_free);
+  g_clear_pointer(&settings->remote_path, g_free);
+  g_clear_pointer(&settings->full_remote_url, g_free);
   g_clear_pointer(&settings->username, g_free);
   g_clear_pointer(&settings->password, g_free);
   g_clear_pointer(&settings->device_id, g_free);
@@ -109,6 +112,73 @@ get_optional_string(GKeyFile *key_file,
     return NULL;
   }
   return value;
+}
+
+static gboolean
+is_absolute_http_url(const gchar *value)
+{
+  return value &&
+      (g_str_has_prefix(value, "https://") ||
+       g_str_has_prefix(value, "http://"));
+}
+
+static gchar *
+normalize_remote_path(const gchar *remote_path)
+{
+  g_autofree gchar *copy = g_strdup(
+      remote_path && remote_path[0] ?
+      remote_path : QIWO_WEBDAV_DEFAULT_REMOTE_PATH);
+  g_strstrip(copy);
+  if (!copy[0]) {
+    return g_strdup(QIWO_WEBDAV_DEFAULT_REMOTE_PATH);
+  }
+  if (is_absolute_http_url(copy)) {
+    return g_strdup(copy);
+  }
+
+  const gchar *start = copy;
+  while (*start == '/') {
+    start++;
+  }
+  if (!start[0]) {
+    return g_strdup(QIWO_WEBDAV_DEFAULT_REMOTE_PATH);
+  }
+  return g_strdup(start);
+}
+
+static gchar *
+trimmed_dup(const gchar *value)
+{
+  if (!value) return NULL;
+  gchar *copy = g_strdup(value);
+  g_strstrip(copy);
+  if (!copy[0]) {
+    g_free(copy);
+    return NULL;
+  }
+  return copy;
+}
+
+gchar *
+qiwo_webdav_config_build_full_remote_url(const gchar *server_url,
+                                         const gchar *remote_path)
+{
+  g_autofree gchar *path = normalize_remote_path(remote_path);
+  if (is_absolute_http_url(path)) {
+    return g_strdup(path);
+  }
+
+  g_autofree gchar *server = trimmed_dup(server_url);
+  if (!server) {
+    return NULL;
+  }
+  while (g_str_has_suffix(server, "/")) {
+    server[strlen(server) - 1] = '\0';
+  }
+  if (!server[0]) {
+    return NULL;
+  }
+  return g_strdup_printf("%s/%s", server, path);
 }
 
 static gboolean
@@ -211,11 +281,15 @@ qiwo_webdav_config_load(QiwoWebDavSettings *settings, GError **error)
   }
 
   g_clear_pointer(&settings->url, g_free);
+  g_clear_pointer(&settings->remote_path, g_free);
   g_clear_pointer(&settings->username, g_free);
   g_clear_pointer(&settings->password, g_free);
   g_clear_pointer(&settings->device_id, g_free);
 
   settings->url = get_optional_string(key_file, "url");
+  g_autofree gchar *saved_remote_path =
+      get_optional_string(key_file, "remote_path");
+  settings->remote_path = normalize_remote_path(saved_remote_path);
   settings->username = get_optional_string(key_file, "username");
   settings->device_id = get_optional_string(key_file, "device_id");
   settings->password = get_optional_string(key_file, "password");
@@ -249,6 +323,8 @@ qiwo_webdav_config_save(const QiwoWebDavSettings *settings, GError **error)
 
   g_autoptr(GKeyFile) key_file = g_key_file_new();
   set_string_if_present(key_file, "url", settings->url);
+  g_autofree gchar *remote_path = normalize_remote_path(settings->remote_path);
+  set_string_if_present(key_file, "remote_path", remote_path);
   set_string_if_present(key_file, "username", settings->username);
   set_string_if_present(key_file, "device_id", settings->device_id);
   gboolean stored_in_secret = try_store_secret_password(settings->password);
@@ -317,6 +393,10 @@ copy_saved_to_effective(const QiwoWebDavSettings *saved,
                         QiwoEffectiveWebDavSettings *effective)
 {
   effective->url = g_strdup(saved->url);
+  effective->remote_path = normalize_remote_path(saved->remote_path);
+  effective->full_remote_url =
+      qiwo_webdav_config_build_full_remote_url(effective->url,
+                                               effective->remote_path);
   effective->username = g_strdup(saved->username);
   effective->password = g_strdup(saved->password);
   effective->device_id = g_strdup(saved->device_id);
@@ -341,8 +421,8 @@ qiwo_webdav_config_load_effective(QiwoEffectiveWebDavSettings *settings,
 
   const gchar *value = g_getenv(QIWO_WEBDAV_ENV_URL);
   if (value && value[0]) {
-    g_free(settings->url);
-    settings->url = g_strdup(value);
+    g_free(settings->full_remote_url);
+    settings->full_remote_url = g_strdup(value);
     settings->url_overridden = TRUE;
   }
 
@@ -404,7 +484,7 @@ qiwo_webdav_effective_settings_validate(const QiwoEffectiveWebDavSettings *setti
                                         GError **error)
 {
   g_return_val_if_fail(settings != NULL, FALSE);
-  if (!settings->url || !settings->url[0]) {
+  if (!settings->full_remote_url || !settings->full_remote_url[0]) {
     g_set_error(error, QIWO_WEBDAV_CONFIG_ERROR,
                 QIWO_WEBDAV_CONFIG_ERROR_MISSING_URL,
                 "WebDAV URL is required.");

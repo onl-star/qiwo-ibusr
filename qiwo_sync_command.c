@@ -86,7 +86,7 @@ qiwo_sync_command_build_argv(const gchar *tool_path,
   g_ptr_array_add(argv, g_strdup("--rime-user-dir"));
   g_ptr_array_add(argv, g_strdup(rime_user_dir));
   g_ptr_array_add(argv, g_strdup("--remote-url"));
-  g_ptr_array_add(argv, g_strdup(settings->url));
+  g_ptr_array_add(argv, g_strdup(settings->full_remote_url));
   g_ptr_array_add(argv, g_strdup("--username"));
   g_ptr_array_add(argv, g_strdup(settings->username));
   g_ptr_array_add(argv, g_strdup("--password-env"));

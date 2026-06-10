@@ -6,6 +6,7 @@
 typedef struct {
   GtkWidget *window;
   GtkWidget *url_entry;
+  GtkWidget *remote_path_entry;
   GtkWidget *username_entry;
   GtkWidget *password_entry;
   GtkWidget *device_id_entry;
@@ -41,7 +42,7 @@ build_window(SettingsWidgets *widgets)
 {
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), "Qiwo WebDAV Settings");
-  gtk_window_set_default_size(GTK_WINDOW(window), 520, 360);
+  gtk_window_set_default_size(GTK_WINDOW(window), 560, 400);
   gtk_container_set_border_width(GTK_CONTAINER(window), 16);
   g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
@@ -50,37 +51,38 @@ build_window(SettingsWidgets *widgets)
   gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
   gtk_container_add(GTK_CONTAINER(window), grid);
 
-  widgets->url_entry = add_labeled_entry(GTK_GRID(grid), "WebDAV URL", 0, FALSE);
-  widgets->username_entry = add_labeled_entry(GTK_GRID(grid), "Username", 1, FALSE);
-  widgets->password_entry = add_labeled_entry(GTK_GRID(grid), "Password", 2, TRUE);
-  widgets->device_id_entry = add_labeled_entry(GTK_GRID(grid), "Device ID", 3, FALSE);
+  widgets->url_entry = add_labeled_entry(GTK_GRID(grid), "WebDAV Server URL", 0, FALSE);
+  widgets->remote_path_entry = add_labeled_entry(GTK_GRID(grid), "Remote Path", 1, FALSE);
+  widgets->username_entry = add_labeled_entry(GTK_GRID(grid), "Username", 2, FALSE);
+  widgets->password_entry = add_labeled_entry(GTK_GRID(grid), "Password", 3, TRUE);
+  widgets->device_id_entry = add_labeled_entry(GTK_GRID(grid), "Device ID", 4, FALSE);
 
   GtkWidget *interval_label = gtk_label_new("Auto sync interval (minutes)");
   gtk_widget_set_halign(interval_label, GTK_ALIGN_END);
-  gtk_grid_attach(GTK_GRID(grid), interval_label, 0, 4, 1, 1);
+  gtk_grid_attach(GTK_GRID(grid), interval_label, 0, 5, 1, 1);
 
   widgets->interval_spin = gtk_spin_button_new_with_range(0, 1440, 1);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->interval_spin), 0);
-  gtk_grid_attach(GTK_GRID(grid), widgets->interval_spin, 1, 4, 2, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->interval_spin, 1, 5, 2, 1);
 
   widgets->storage_label = gtk_label_new("Password storage: none");
   gtk_label_set_xalign(GTK_LABEL(widgets->storage_label), 0.0);
-  gtk_grid_attach(GTK_GRID(grid), widgets->storage_label, 0, 5, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->storage_label, 0, 6, 3, 1);
 
   widgets->override_label = gtk_label_new("");
   gtk_label_set_xalign(GTK_LABEL(widgets->override_label), 0.0);
   gtk_label_set_line_wrap(GTK_LABEL(widgets->override_label), TRUE);
   gtk_widget_set_hexpand(widgets->override_label, TRUE);
-  gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 6, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->override_label, 0, 7, 3, 1);
 
   widgets->status_label = gtk_label_new("Configure WebDAV sync settings.");
   gtk_label_set_xalign(GTK_LABEL(widgets->status_label), 0.0);
   gtk_widget_set_hexpand(widgets->status_label, TRUE);
-  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 7, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), widgets->status_label, 0, 8, 3, 1);
 
   GtkWidget *button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
   gtk_button_box_set_layout(GTK_BUTTON_BOX(button_box), GTK_BUTTONBOX_END);
-  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 8, 3, 1);
+  gtk_grid_attach(GTK_GRID(grid), button_box, 0, 9, 3, 1);
 
   widgets->save_button = gtk_button_new_with_label("Save");
   widgets->test_button = gtk_button_new_with_label("Test Connection");
@@ -126,6 +128,9 @@ load_saved_settings(SettingsWidgets *widgets)
   if (settings.url) {
     gtk_entry_set_text(GTK_ENTRY(widgets->url_entry), settings.url);
   }
+  gtk_entry_set_text(GTK_ENTRY(widgets->remote_path_entry),
+                     settings.remote_path ?
+                     settings.remote_path : QIWO_WEBDAV_DEFAULT_REMOTE_PATH);
   if (settings.username) {
     gtk_entry_set_text(GTK_ENTRY(widgets->username_entry), settings.username);
   }
@@ -158,7 +163,7 @@ load_override_notice(SettingsWidgets *widgets)
   }
 
   GString *message = g_string_new("");
-  if (settings.url_overridden) g_string_append(message, "URL, ");
+  if (settings.url_overridden) g_string_append(message, "remote URL, ");
   if (settings.username_overridden) g_string_append(message, "username, ");
   if (settings.password_overridden) g_string_append(message, "password, ");
   if (settings.device_id_overridden) g_string_append(message, "device ID, ");
@@ -187,6 +192,8 @@ save_settings(GtkButton *button, gpointer user_data)
   QiwoWebDavSettings settings;
   qiwo_webdav_settings_init(&settings);
   settings.url = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->url_entry)));
+  settings.remote_path =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->remote_path_entry)));
   settings.username = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->username_entry)));
   settings.password = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->password_entry)));
   settings.device_id = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->device_id_entry)));
@@ -200,6 +207,7 @@ save_settings(GtkButton *button, gpointer user_data)
     g_clear_error(&error);
   } else {
     load_saved_settings(widgets);
+    load_override_notice(widgets);
     gtk_label_set_text(GTK_LABEL(widgets->status_label), "Settings saved.");
   }
 
@@ -212,12 +220,45 @@ collect_effective_settings(SettingsWidgets *widgets,
 {
   qiwo_effective_webdav_settings_init(settings);
   settings->url = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->url_entry)));
+  settings->remote_path =
+      g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->remote_path_entry)));
+  settings->full_remote_url =
+      qiwo_webdav_config_build_full_remote_url(settings->url,
+                                               settings->remote_path);
   settings->username = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->username_entry)));
   settings->password = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->password_entry)));
   settings->device_id = g_strdup(gtk_entry_get_text(GTK_ENTRY(widgets->device_id_entry)));
   settings->auto_sync_interval_minutes =
       gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->interval_spin));
   settings->password_storage_mode = QIWO_PASSWORD_STORAGE_LOCAL_FILE;
+
+  const gchar *value = g_getenv(QIWO_WEBDAV_ENV_URL);
+  if (value && value[0]) {
+    g_free(settings->full_remote_url);
+    settings->full_remote_url = g_strdup(value);
+    settings->url_overridden = TRUE;
+  }
+
+  value = g_getenv(QIWO_WEBDAV_ENV_USERNAME);
+  if (value && value[0]) {
+    g_free(settings->username);
+    settings->username = g_strdup(value);
+    settings->username_overridden = TRUE;
+  }
+
+  value = g_getenv(QIWO_WEBDAV_ENV_PASSWORD);
+  if (value && value[0]) {
+    g_free(settings->password);
+    settings->password = g_strdup(value);
+    settings->password_overridden = TRUE;
+  }
+
+  value = g_getenv(QIWO_WEBDAV_ENV_DEVICE_ID);
+  if (value && value[0]) {
+    g_free(settings->device_id);
+    settings->device_id = g_strdup(value);
+    settings->device_id_overridden = TRUE;
+  }
 }
 
 static gboolean
