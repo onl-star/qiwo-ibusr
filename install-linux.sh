@@ -97,6 +97,40 @@ if [[ $skip_setup -eq 0 ]]; then
   make -C "$script_dir" setup
 fi
 
+ensure_bundled_sync_core() {
+  if [[ -n "$sync_bin" || -n "$sync_core_dir" ]]; then
+    return 0
+  fi
+  if [[ -f "$script_dir/qiwo-sync-core/Cargo.toml" ]]; then
+    return 0
+  fi
+  if [[ -f "$script_dir/../qiwo-sync-core/Cargo.toml" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$script_dir/.gitmodules" ]]; then
+    return 0
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "ERROR: bundled qiwo-sync-core is missing and git is not available." >&2
+    echo "Run git submodule update --init --recursive, install git, or pass --sync-bin PATH." >&2
+    exit 1
+  fi
+
+  echo "--> qiwo-sync-core submodule missing, initializing..."
+  if ! git -C "$script_dir" submodule update --init --recursive qiwo-sync-core; then
+    echo "ERROR: failed to initialize qiwo-sync-core submodule." >&2
+    echo "Run git submodule update --init --recursive, or pass --sync-bin PATH." >&2
+    exit 1
+  fi
+  if [[ ! -f "$script_dir/qiwo-sync-core/Cargo.toml" ]]; then
+    echo "ERROR: qiwo-sync-core submodule is still missing after initialization." >&2
+    echo "Expected: $script_dir/qiwo-sync-core/Cargo.toml" >&2
+    exit 1
+  fi
+}
+
+ensure_bundled_sync_core
+
 detect_rime_data_dir() {
   local candidates=(
     "$prefix/share/rime-data"
