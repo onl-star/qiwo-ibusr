@@ -60,7 +60,7 @@ git submodule update --init --recursive
 ```
 
 > 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。
-> WebDAV 同步命令来自共享的 `qiwo-sync-core`。在父仓库工作区中，默认会使用相邻的 `../qiwo-sync-core`；独立构建时可以使用 `--sync-core-dir` 指定源码目录，或用 `--sync-bin` 指定预构建的 `qiwo-rime-sync`。
+> WebDAV 同步命令来自共享的 `qiwo-sync-core`。源码安装默认使用仓库内置的 `qiwo-sync-core` 子模块；如果需要覆盖，可以用 `--sync-core-dir` 指定其他源码目录，或用 `--sync-bin` 指定预构建的 `qiwo-rime-sync`。
 
 ## 编译
 
@@ -80,7 +80,7 @@ cd qiwo-ibusr
 # CMake 找不到 Rime 数据目录时手动指定
 ./install-linux.sh --rime-data-dir /usr/share/rime-data
 
-# 指定 qiwo-sync-core 源码目录构建共享同步命令
+# 可选：指定其他 qiwo-sync-core 源码目录构建共享同步命令
 ./install-linux.sh --sync-core-dir ../qiwo-sync-core
 
 # 或指定预构建的共享同步命令
@@ -97,7 +97,7 @@ cd qiwo-ibusr
 
 # 配置（默认安装到 /usr）
 mkdir -p build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DQIWO_SYNC_CORE_DIR=../../qiwo-sync-core
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr
 
 # 编译
 make
@@ -295,9 +295,10 @@ Linux 安装的 `qiwo-rime-sync` 应来自 `qiwo-sync-core`。可用以下命令
 /usr/share/qiwo/qiwo-rime-sync --help | grep -E 'init-frost|sync-user-dict'
 ```
 
-如果安装时报 `qiwo-sync-core source tree was not found`，请确认父仓库已初始化子模块，或显式传入源码目录：
+如果安装时报 `qiwo-sync-core source tree was not found`，请确认已初始化子模块，或显式传入源码目录：
 
 ```bash
+git submodule update --init --recursive
 ./install-linux.sh --sync-core-dir ../qiwo-sync-core
 ```
 

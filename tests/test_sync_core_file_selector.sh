@@ -3,6 +3,12 @@ set -euo pipefail
 
 sync_core_dir="${QIWO_SYNC_CORE_DIR:-}"
 if [[ -z "$sync_core_dir" ]]; then
+  candidate="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/qiwo-sync-core"
+  if [[ -f "$candidate/Cargo.toml" ]]; then
+    sync_core_dir="$candidate"
+  fi
+fi
+if [[ -z "$sync_core_dir" ]]; then
   candidate="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/qiwo-sync-core"
   if [[ -f "$candidate/Cargo.toml" ]]; then
     sync_core_dir="$candidate"

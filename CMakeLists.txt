@@ -59,7 +59,10 @@ endif()
 set(qiwo_sync_dir "${CMAKE_INSTALL_FULL_DATADIR}/qiwo")
 add_definitions(-DQIWO_SYNC_DIR="${qiwo_sync_dir}")
 
-if(NOT QIWO_SYNC_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-sync-core/Cargo.toml")
+if(NOT QIWO_SYNC_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/qiwo-sync-core/Cargo.toml")
+  set(QIWO_SYNC_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/qiwo-sync-core"
+      CACHE PATH "Path to qiwo-sync-core source tree" FORCE)
+elseif(NOT QIWO_SYNC_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-sync-core/Cargo.toml")
   set(QIWO_SYNC_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-sync-core"
       CACHE PATH "Path to qiwo-sync-core source tree" FORCE)
 endif()

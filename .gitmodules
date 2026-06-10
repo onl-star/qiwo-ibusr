@@ -7,3 +7,6 @@
 [submodule "rime-frost"]
 	path = rime-frost
 	url = https://github.com/gaboolic/rime-frost.git
+[submodule "qiwo-sync-core"]
+	path = qiwo-sync-core
+	url = https://github.com/LeaWron/qiwo-sync-core.git

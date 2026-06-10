@@ -21,6 +21,11 @@ grep -q 'QIWO_SYNC_CORE_DIR' "$cmake_file" || {
   exit 1
 }
 
+grep -q 'qiwo-sync-core/Cargo.toml' "$cmake_file" || {
+  echo "CMake does not prefer the bundled qiwo-sync-core submodule" >&2
+  exit 1
+}
+
 sync_user_calls="$(grep -c 'rime_api->sync_user_data()' "$rime_main_file" || true)"
 if [[ "$sync_user_calls" -lt 2 ]]; then
   echo "panel sync no longer exports and imports Rime user data around shared sync" >&2
