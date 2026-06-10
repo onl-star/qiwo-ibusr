@@ -46,6 +46,16 @@ grep -q 'join_maintenance_thread' "$rime_main_file" || {
   exit 1
 }
 
+grep -q 'ibus_rime_redeploy_after_sync' "$rime_main_file" || {
+  echo "engine full sync no longer redeploys Rime after WebDAV sync" >&2
+  exit 1
+}
+
+grep -q 'start_maintenance((Bool)TRUE)' "$rime_main_file" || {
+  echo "engine full sync should trigger a full Rime redeploy after sync" >&2
+  exit 1
+}
+
 grep -q 'qiwo_sync_ipc_create_server' "$rime_main_file" || {
   echo "engine does not expose the settings Sync Now IPC server" >&2
   exit 1

@@ -342,6 +342,28 @@ rime_sync_user_data_hook(gpointer user_data, GError **error)
 }
 
 static gboolean
+ibus_rime_redeploy_after_sync(GError **error)
+{
+  if (!rime_api) {
+    g_set_error(error, QIWO_SYNC_COMMAND_ERROR,
+                QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                "Rime API is not initialized.");
+    return FALSE;
+  }
+
+  if (!rime_api->start_maintenance((Bool)TRUE)) {
+    g_set_error_literal(error, QIWO_SYNC_COMMAND_ERROR,
+                        QIWO_SYNC_COMMAND_ERROR_RIME_SYNC_FAILED,
+                        "Rime redeploy did not start.");
+    return FALSE;
+  }
+  rime_api->deploy_config_file("ibus_rime.yaml", "config_version");
+  rime_api->join_maintenance_thread();
+  ibus_rime_load_settings();
+  return TRUE;
+}
+
+static gboolean
 ibus_rime_run_webdav_sync(gchar **message_out)
 {
   if (message_out) {
@@ -393,10 +415,26 @@ ibus_rime_run_webdav_sync(gchar **message_out)
       *message_out = g_strdup(details);
     }
   } else {
-    if (message_out) {
-      *message_out = g_strdup(
+    GError *deploy_error = NULL;
+    ok = ibus_rime_redeploy_after_sync(&deploy_error);
+    if (!ok) {
+      const gchar *details = deploy_error ? deploy_error->message :
+          _("Unknown error.");
+      g_warning("Qiwo Rime redeploy failed after WebDAV sync: %s", details);
+      if (message_out) {
+        *message_out = g_strdup_printf(
+            "Sync completed, but Rime redeploy failed: %s", details);
+      }
+      g_clear_error(&deploy_error);
+    } else if (message_out) {
+      g_autofree gchar *summary = g_strdup(
           result.stdout_text && result.stdout_text[0] ?
           result.stdout_text : _("Sync completed."));
+      g_strstrip(summary);
+      *message_out = g_strdup_printf(
+          "%s\n%s",
+          summary[0] ? summary : _("Sync completed."),
+          _("Rime redeployed."));
     }
   }
 
