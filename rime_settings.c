@@ -21,6 +21,7 @@ static struct IBusRimeSettings ibus_rime_settings_default = {
   .lookup_table_orientation = IBUS_ORIENTATION_SYSTEM,
   .color_scheme = NULL,
   .auto_sync_interval_seconds = 0,
+  .auto_commit_spacing_enabled = TRUE,
 };
 
 struct IBusRimeSettings g_ibus_rime_settings;
@@ -94,6 +95,12 @@ ibus_rime_load_settings()
   if (rime_api->config_get_bool(&config, "style/horizontal", &horizontal)) {
     g_ibus_rime_settings.lookup_table_orientation =
       horizontal ? IBUS_ORIENTATION_HORIZONTAL : IBUS_ORIENTATION_VERTICAL;
+  }
+
+  Bool auto_commit_spacing = True;
+  if (rime_api->config_get_bool(
+          &config, "input/auto_commit_spacing", &auto_commit_spacing)) {
+    g_ibus_rime_settings.auto_commit_spacing_enabled = !!auto_commit_spacing;
   }
 
   const char* color_scheme =

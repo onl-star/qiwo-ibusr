@@ -31,6 +31,7 @@ struct IBusRimeSettings {
   gint lookup_table_orientation;
   struct ColorSchemeDefinition* color_scheme;
   guint auto_sync_interval_seconds;  // 0 = disabled
+  gboolean auto_commit_spacing_enabled;
 };
 
 extern struct IBusRimeSettings g_ibus_rime_settings;

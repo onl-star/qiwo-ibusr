@@ -7,6 +7,7 @@ option(BUILD_STATIC "Build Rime using static libraries" OFF)
 option(BUILD_TESTING "Build qiwo-ibus tests" ON)
 set(QIWO_RIME_SYNC_BIN "" CACHE FILEPATH "Path to a prebuilt shared qiwo-rime-sync executable")
 set(QIWO_SYNC_CORE_DIR "" CACHE PATH "Path to qiwo-sync-core source tree")
+set(QIWO_INPUT_FORMAT_CORE_DIR "" CACHE PATH "Path to qiwo-input-format-core source tree")
 
 include(GNUInstallDirs)
 include(CTest)
@@ -149,6 +150,99 @@ else()
 endif()
 add_custom_target(qiwo-rime-sync-tool ALL DEPENDS "${QIWO_RIME_SYNC_OUTPUT}")
 
+if(NOT QIWO_INPUT_FORMAT_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/qiwo-input-format-core/Cargo.toml")
+  set(QIWO_INPUT_FORMAT_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/qiwo-input-format-core"
+      CACHE PATH "Path to qiwo-input-format-core source tree" FORCE)
+elseif(NOT QIWO_INPUT_FORMAT_CORE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-input-format-core/Cargo.toml")
+  set(QIWO_INPUT_FORMAT_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../qiwo-input-format-core"
+      CACHE PATH "Path to qiwo-input-format-core source tree" FORCE)
+endif()
+if(QIWO_INPUT_FORMAT_CORE_DIR)
+  get_filename_component(QIWO_INPUT_FORMAT_CORE_DIR "${QIWO_INPUT_FORMAT_CORE_DIR}" ABSOLUTE)
+endif()
+if(NOT QIWO_INPUT_FORMAT_CORE_DIR OR NOT EXISTS "${QIWO_INPUT_FORMAT_CORE_DIR}/Cargo.toml")
+  message(FATAL_ERROR
+    "qiwo-input-format-core source tree was not found. "
+    "Set QIWO_INPUT_FORMAT_CORE_DIR to a directory containing Cargo.toml.")
+endif()
+
+set(QIWO_INPUT_FORMAT_CRATE_DIR "${QIWO_INPUT_FORMAT_CORE_DIR}/qiwo-input-format")
+set(QIWO_INPUT_FORMAT_INCLUDE_DIR "${QIWO_INPUT_FORMAT_CRATE_DIR}/include")
+if(NOT EXISTS "${QIWO_INPUT_FORMAT_INCLUDE_DIR}/qiwo_input_format.h")
+  message(FATAL_ERROR
+    "qiwo-input-format C ABI header was not found under "
+    "${QIWO_INPUT_FORMAT_INCLUDE_DIR}.")
+endif()
+
+if(NOT CARGO_EXECUTABLE)
+  find_program(CARGO_EXECUTABLE cargo)
+endif()
+if(NOT CARGO_EXECUTABLE)
+  message(FATAL_ERROR
+    "cargo was not found. Install Rust/Cargo to build qiwo-input-format-core.")
+endif()
+if(NOT RUSTC_EXECUTABLE)
+  find_program(RUSTC_EXECUTABLE rustc)
+endif()
+if(NOT RUSTC_EXECUTABLE)
+  message(FATAL_ERROR
+    "rustc was not found. Install Rust/Cargo to build qiwo-input-format-core.")
+endif()
+if(NOT DEFINED QIWO_MIN_RUST_VERSION)
+  set(QIWO_MIN_RUST_VERSION "1.85.0")
+endif()
+execute_process(
+  COMMAND "${CARGO_EXECUTABLE}" --version
+  OUTPUT_VARIABLE QIWO_INPUT_FORMAT_CARGO_VERSION_OUTPUT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" QIWO_INPUT_FORMAT_CARGO_VERSION
+       "${QIWO_INPUT_FORMAT_CARGO_VERSION_OUTPUT}")
+if(NOT QIWO_INPUT_FORMAT_CARGO_VERSION OR QIWO_INPUT_FORMAT_CARGO_VERSION VERSION_LESS QIWO_MIN_RUST_VERSION)
+  message(FATAL_ERROR
+    "cargo ${QIWO_INPUT_FORMAT_CARGO_VERSION_OUTPUT} is too old. "
+    "qiwo-input-format-core uses Rust 2024 edition and requires "
+    "Rust/Cargo >= ${QIWO_MIN_RUST_VERSION}. Install a current Rust toolchain "
+    "with rustup.")
+endif()
+execute_process(
+  COMMAND "${RUSTC_EXECUTABLE}" --version
+  OUTPUT_VARIABLE QIWO_INPUT_FORMAT_RUSTC_VERSION_OUTPUT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" QIWO_INPUT_FORMAT_RUSTC_VERSION
+       "${QIWO_INPUT_FORMAT_RUSTC_VERSION_OUTPUT}")
+if(NOT QIWO_INPUT_FORMAT_RUSTC_VERSION OR QIWO_INPUT_FORMAT_RUSTC_VERSION VERSION_LESS QIWO_MIN_RUST_VERSION)
+  message(FATAL_ERROR
+    "rustc ${QIWO_INPUT_FORMAT_RUSTC_VERSION_OUTPUT} is too old. "
+    "qiwo-input-format-core uses Rust 2024 edition and requires "
+    "Rust/Cargo >= ${QIWO_MIN_RUST_VERSION}. Install a current Rust toolchain "
+    "with rustup.")
+endif()
+
+set(QIWO_INPUT_FORMAT_LIBRARY_NAME
+    "${CMAKE_SHARED_LIBRARY_PREFIX}qiwo_input_format${CMAKE_SHARED_LIBRARY_SUFFIX}")
+set(QIWO_INPUT_FORMAT_CARGO_OUTPUT
+    "${QIWO_INPUT_FORMAT_CORE_DIR}/target/release/${QIWO_INPUT_FORMAT_LIBRARY_NAME}")
+set(QIWO_INPUT_FORMAT_OUTPUT
+    "${CMAKE_CURRENT_BINARY_DIR}/${QIWO_INPUT_FORMAT_LIBRARY_NAME}")
+add_custom_command(
+  OUTPUT "${QIWO_INPUT_FORMAT_OUTPUT}"
+  COMMAND "${CARGO_EXECUTABLE}" build --release
+          --manifest-path "${QIWO_INPUT_FORMAT_CORE_DIR}/Cargo.toml"
+          -p qiwo-input-format
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+          "${QIWO_INPUT_FORMAT_CARGO_OUTPUT}"
+          "${QIWO_INPUT_FORMAT_OUTPUT}"
+  WORKING_DIRECTORY "${QIWO_INPUT_FORMAT_CORE_DIR}"
+  COMMENT "Building shared qiwo_input_format from qiwo-input-format-core"
+  VERBATIM)
+add_custom_target(qiwo-input-format-lib ALL DEPENDS "${QIWO_INPUT_FORMAT_OUTPUT}")
+add_library(qiwo_input_format SHARED IMPORTED GLOBAL)
+set_target_properties(qiwo_input_format PROPERTIES
+  IMPORTED_LOCATION "${QIWO_INPUT_FORMAT_OUTPUT}"
+  INTERFACE_INCLUDE_DIRECTORIES "${QIWO_INPUT_FORMAT_INCLUDE_DIR}")
+
 set(ibus_rime_icons_dir "${CMAKE_INSTALL_FULL_DATADIR}/qiwo/icons")
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/rime_config.h.in"
@@ -176,9 +270,14 @@ set(IBUS_RIME_SRC
   qiwo_rime_default_config.c
   qiwo_webdav_config.c
   qiwo_sync_command.c
-  qiwo_sync_ipc.c)
+  qiwo_sync_ipc.c
+  qiwo_input_format_bridge.c)
 add_executable(ibus-engine-rime ${IBUS_RIME_SRC})
-target_link_libraries(ibus-engine-rime ${IBus_LIBRARIES} ${LIBNOTIFY_LIBRARIES} ${LIBSECRET_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS})
+add_dependencies(ibus-engine-rime qiwo-input-format-lib)
+target_include_directories(ibus-engine-rime PRIVATE
+  "${QIWO_INPUT_FORMAT_INCLUDE_DIR}")
+target_link_libraries(ibus-engine-rime ${IBus_LIBRARIES} ${LIBNOTIFY_LIBRARIES} ${LIBSECRET_LIBRARIES} ${Rime_LIBRARIES} ${RIME_DEPS} qiwo_input_format)
+set_target_properties(ibus-engine-rime PROPERTIES INSTALL_RPATH "\$ORIGIN")
 
 add_executable(qiwo-webdav-settings
   qiwo_webdav_settings.c
@@ -202,6 +301,7 @@ install(TARGETS qiwo-webdav-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qiwo-webdav-settings.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(DIRECTORY icons DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo/icons" FILES_MATCHING PATTERN "*.png")
 install(PROGRAMS "${QIWO_RIME_SYNC_OUTPUT}" DESTINATION "${CMAKE_INSTALL_DATADIR}/qiwo")
+install(FILES "${QIWO_INPUT_FORMAT_OUTPUT}" DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/qiwo")
 install(DIRECTORY "${QIWO_RIME_FROST_DIR}/" DESTINATION "${RIME_DATA_DIR}"
   FILES_MATCHING
   PATTERN "*.yaml"
@@ -230,6 +330,8 @@ if(BUILD_TESTING)
            COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sync_core_file_selector.sh")
   set_tests_properties(sync_core_file_selector PROPERTIES
     ENVIRONMENT "QIWO_SYNC_CORE_DIR=${QIWO_SYNC_CORE_DIR}")
+  add_test(NAME input_format_packaging
+           COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_input_format_packaging.sh")
 
   add_executable(test_qiwo_webdav_config
     tests/test_qiwo_webdav_config.c

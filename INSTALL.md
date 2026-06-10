@@ -8,7 +8,7 @@
 - CMake 3.10+
 - make
 - GCC 或 Clang（支持 C11）
-- Rust/Cargo 1.85+（从源码构建共享同步命令时需要；使用 `--sync-bin` 时不需要）
+- Rust/Cargo 1.85+（从源码构建共享同步命令和中英数字自动空格库时需要；使用 `--sync-bin` 只能跳过同步命令构建）
 - libnotify
 - GTK 3
 - libsecret（Secret Service 密码存储）
@@ -79,14 +79,23 @@ cd qiwo-ibusr
 - `rime-frost`：默认输入方案资源
 - `qiwo-sync-core`：共享 WebDAV 同步命令
 
-如果要手动初始化，只需要拉这两个子模块：
+另外，Linux 构建需要共享提交文本格式化库 `qiwo-input-format-core`。在顶层工作区中它位于 `qiwo-ibusr` 的同级目录，CMake 会默认查找 `../qiwo-input-format-core`。如果是独立克隆 `qiwo-ibusr`，请把 `qiwo-input-format-core` 克隆到同级目录，或在手动 CMake 配置时指定 `QIWO_INPUT_FORMAT_CORE_DIR`。
+
+如果要手动初始化 `qiwo-ibusr` 内部子模块，只需要拉这两个：
 
 ```bash
 git submodule update --init --recursive rime-frost qiwo-sync-core
 ```
 
+在顶层工作区中，还需要初始化同级的 input-format submodule：
+
+```bash
+git submodule update --init --recursive qiwo-input-format-core
+```
+
 > 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。
 > WebDAV 同步命令来自共享的 `qiwo-sync-core`。源码安装默认使用仓库内置的 `qiwo-sync-core` 子模块；如果需要覆盖，可以用 `--sync-core-dir` 指定其他源码目录，或用 `--sync-bin` 指定预构建的 `qiwo-rime-sync`。
+> 中英数字自动空格来自共享的 `qiwo-input-format-core`，源码安装会构建 `libqiwo_input_format` 并随 IBus engine 一起安装。
 
 ## 编译
 
@@ -126,6 +135,9 @@ git submodule update --init --recursive rime-frost qiwo-sync-core
 mkdir -p build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr
 
+# 如果 qiwo-input-format-core 不在 ../qiwo-input-format-core：
+# cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DQIWO_INPUT_FORMAT_CORE_DIR=/path/to/qiwo-input-format-core
+
 # 编译
 make
 
@@ -137,6 +149,7 @@ sudo make install
 
 ```
 /usr/lib/qiwo/ibus-engine-rime          # IBus 引擎可执行文件
+/usr/lib/qiwo/libqiwo_input_format.so   # qiwo-input-format-core 提交文本格式化库
 /usr/share/qiwo/qiwo-rime-sync          # qiwo-sync-core 共享 WebDAV 同步命令
 /usr/bin/qiwo-webdav-settings           # WebDAV 图形设置窗口
 /usr/share/qiwo/icons/                   # 图标文件
@@ -187,6 +200,17 @@ ibus list-engine | grep -i qiwo
 ```
 
 如果使用 `--prefix /usr/local` 安装，component 路径通常是 `/usr/local/share/ibus/component/qiwo.xml`；部分发行版的 IBus 默认只扫描 `/usr/share/ibus/component`，这种情况下请安装到 `/usr`。
+
+## 配置中英数字自动空格
+
+Linux 端默认开启提交文本自动空格。该功能只在 Rime commit text 进入 IBus 提交接口前生效，不会修改候选、preedit、输入码、词库或学习数据。默认配置位于 `ibus_rime.yaml`：
+
+```yaml
+input:
+  auto_commit_spacing: true
+```
+
+需要关闭时，在用户 Rime 配置中覆盖 `input/auto_commit_spacing: false`，然后重新部署或重启输入法。Linux 端当前不强制依赖应用提供 surrounding text；拿不到光标前后文本时仍会对本次提交文本内部应用空格规则。
 
 ## 配置 WebDAV 同步
 

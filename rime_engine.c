@@ -1,6 +1,7 @@
 #include "rime_config.h"
 #include <string.h>
 #include <rime_api.h>
+#include "qiwo_input_format_bridge.h"
 #include "rime_engine.h"
 #include "rime_settings.h"
 
@@ -308,7 +309,11 @@ static void ibus_rime_engine_update(IBusRimeEngine *rime_engine)
   RIME_STRUCT(RimeCommit, commit);
   if (rime_api->get_commit(rime_engine->session_id, &commit)) {
     IBusText *text;
-    text = ibus_text_new_from_string(commit.text);
+    gchar *formatted_commit_text = qiwo_input_format_bridge_format_commit_text(
+        commit.text, NULL, NULL,
+        g_ibus_rime_settings.auto_commit_spacing_enabled);
+    text = ibus_text_new_from_string(formatted_commit_text);
+    g_free(formatted_commit_text);
     // the text object will be released by ibus
     ibus_engine_commit_text((IBusEngine *)rime_engine, text);
     rime_api->free_commit(&commit);

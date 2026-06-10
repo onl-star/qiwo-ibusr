@@ -2,6 +2,12 @@
 
 config_version: '1.0'
 
+input:
+  # Add spaces in committed mixed Han/Latin/digit text. This applies only to
+  # final commit text; candidate, preedit, input code, dictionary, and learning
+  # data are unchanged.
+  auto_commit_spacing: true
+
 # WebDAV sync configuration.
 # Linux uses the shared qiwo-rime-sync command from qiwo-sync-core.
 # Open "WebDAV 设置" from the IBus panel, or run:
