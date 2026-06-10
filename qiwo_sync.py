@@ -21,7 +21,7 @@ Options:
 import argparse, hashlib, json, os, shutil, sys, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
 
 VERSION = 1
@@ -217,9 +217,14 @@ class WebDavClient:
             creds = b64encode(f"{username}:{password}".encode()).decode()
             self.auth = f"Basic {creds}"
 
+    def _make_url(self, path=""):
+        return (f"{self.base}/{quote(path.lstrip('/'), safe='/')}"
+                if path else self.base)
+
     def _req(self, method, path="", data=None, headers=None):
-        url = (f"{self.base}/{quote(path.lstrip('/'), safe='/')}"
-               if path else self.base)
+        return self._req_url(method, self._make_url(path), data, headers)
+
+    def _req_url(self, method, url, data=None, headers=None):
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header("User-Agent", "QiwoIbus/1.0")
         if self.auth:
@@ -235,20 +240,65 @@ class WebDavClient:
         except Exception as e:
             return 0, str(e).encode()
 
+    @staticmethod
+    def _collection_ok(status):
+        return status in (200, 201, 204, 207, 405)
+
+    @staticmethod
+    def _base_creation_start(parts):
+        for i in range(0, max(len(parts) - 3, 0)):
+            if (parts[i] == "remote.php" and parts[i + 1] in ("dav", "webdav") and
+                    parts[i + 2] == "files"):
+                return i + 4
+        for i in range(0, max(len(parts) - 2, 0)):
+            if parts[i] in ("dav", "webdav") and parts[i + 1] == "files":
+                return i + 3
+        for i, part in enumerate(parts):
+            if part in ("dav", "webdav"):
+                return i + 1
+        return None
+
+    def _mkcol_absolute(self, path_parts):
+        parsed = urlsplit(self.base)
+        path = "/" + "/".join(quote(part, safe="") for part in path_parts)
+        url = urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+        status, _ = self._req_url("MKCOL", url)
+        return status
+
+    def _ensure_base_hierarchy(self):
+        parsed = urlsplit(self.base)
+        parts = [p for p in parsed.path.split("/") if p]
+        start = self._base_creation_start(parts)
+        if start is None or start >= len(parts):
+            return False
+
+        for index in range(start, len(parts)):
+            status = self._mkcol_absolute(parts[:index + 1])
+            if not self._collection_ok(status):
+                return False
+        return True
+
     def ensure_root(self):
         """确保远端根目录存在（MKCOL）。"""
+        status, _ = self._req("PROPFIND", "", headers={"Depth": "0"})
+        if status in (200, 207):
+            return
+
         status, _ = self._req("MKCOL", "")
         # 201=created, 405=already exists, 200/204=ok
-        if status in (200, 201, 204, 405):
+        if self._collection_ok(status):
             return
-        # 逐级创建
-        parts = self.base.rstrip("/").split("/")[3:]  # skip https://host
-        cur = ""
-        for part in parts:
-            if not part:
-                continue
-            cur = f"{cur}/{part}" if cur else part
-            self._req("MKCOL", cur)
+
+        if status in (404, 409) and self._ensure_base_hierarchy():
+            status, _ = self._req("PROPFIND", "", headers={"Depth": "0"})
+            if status in (200, 207):
+                return
+            status, _ = self._req("MKCOL", "")
+            if self._collection_ok(status):
+                return
+
+        raise Exception(
+            f"Unable to create or access WebDAV root: HTTP {status} for {self.base}")
 
     def download(self, path):
         status, data = self._req("GET", path)
@@ -261,6 +311,10 @@ class WebDavClient:
     def upload(self, path, data):
         self._ensure_dir(os.path.dirname(path))
         status, _ = self._req("PUT", path, data)
+        if status in (404, 409):
+            self.ensure_root()
+            self._ensure_dir(os.path.dirname(path))
+            status, _ = self._req("PUT", path, data)
         if status not in (200, 201, 204):
             raise Exception(f"Upload failed: HTTP {status} for {path}")
 
@@ -271,7 +325,9 @@ class WebDavClient:
         cur = ""
         for p in parts:
             cur = f"{cur}/{p}" if cur else p
-            self._req("MKCOL", cur)
+            status, _ = self._req("MKCOL", cur)
+            if not self._collection_ok(status):
+                raise Exception(f"Unable to create WebDAV directory: HTTP {status} for {cur}")
 
     def download_manifest(self):
         try:
