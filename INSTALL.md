@@ -186,7 +186,7 @@ patch:
 
 齐我不会修改 `rime-frost` 子模块本身。`中英数字自动空格` 的 Rime 方案选单入口由齐我生成的 `rime_frost*.custom.yaml` 注入，真正的提交文本格式化由 `qiwo-input-format-core` 执行。
 
-已有的非空 `default.custom.yaml` 不会被覆盖。
+已有的非空 `default.custom.yaml` / `rime_frost*.custom.yaml` 不会被覆盖；齐我只会补齐缺失的 `Ctrl + \`` / `F4` 方案选单和 `中英数字自动空格` 开关 patch。
 
 如果列表里没有「齐我输入法」，先确认 IBus component 已安装并重启 IBus：
 
@@ -209,7 +209,7 @@ input:
 
 也可以在 Rime 方案选单中切换：按 `Ctrl + \`` 或 `F4` 打开方案选单，切换 **中英数字自动空格**。通过方案选单切换的状态会被 Rime 记住，并立即影响后续上屏文本。
 
-需要设定默认值时，在用户 Rime 配置中覆盖 `input/auto_commit_spacing: false`，然后重新部署或重启输入法。Linux 端会优先使用方案选单保存的状态；没有保存状态时才使用 `input/auto_commit_spacing`，最后默认开启。Linux 端当前不强制依赖应用提供 surrounding text；拿不到光标前后文本时仍会对本次提交文本内部应用空格规则。
+需要设定默认值时，在用户 Rime 配置中覆盖 `input/auto_commit_spacing: false`，然后重新部署或重启输入法。Linux 端会优先使用方案选单保存的状态；没有保存状态时才使用 `input/auto_commit_spacing`，最后默认开启。Linux 端会在提交文本时读取 IBus surrounding text，用于处理光标前后边界；如果目标应用不提供 surrounding text，则退回为只处理本次提交文本内部的空格规则。
 
 ## 配置 WebDAV 同步
 

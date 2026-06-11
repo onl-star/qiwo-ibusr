@@ -73,6 +73,12 @@ if "get_option" not in engine_source or '"auto_commit_spacing"' not in engine_so
     fail("rime_engine.c does not read live auto_commit_spacing before commit")
 if "g_ibus_rime_settings.auto_commit_spacing_enabled)" in engine_source:
     fail("rime_engine.c still formats commits from the static global setting")
+if "ibus_engine_get_surrounding_text" not in engine_source:
+    fail("rime_engine.c does not pass IBus surrounding text to the formatter")
+if "commit.text, before_cursor, after_cursor" not in engine_source:
+    fail("rime_engine.c does not pass cursor context to qiwo-input-format-core")
+if "size.uint64Value > 0" in default_config_source or "meta.len() > 0" in sync_frost_source:
+    fail("custom.yaml initialization still skips non-empty existing files")
 if "switcher_auto_spacing_option" not in cmake_source:
     fail("CMakeLists.txt does not register the switcher auto spacing smoke test")
 PY

@@ -66,6 +66,10 @@ static void ibus_rime_engine_property_hide (IBusEngine *engine,
                                             const gchar *prop_name);
 
 static void ibus_rime_engine_update (IBusRimeEngine *rime_engine);
+static void ibus_rime_engine_get_commit_surrounding_text(
+    IBusRimeEngine *rime_engine,
+    gchar **before_cursor,
+    gchar **after_cursor);
 
 G_DEFINE_TYPE (IBusRimeEngine, ibus_rime_engine, IBUS_TYPE_ENGINE)
 
@@ -317,8 +321,14 @@ static void ibus_rime_engine_update(IBusRimeEngine *rime_engine)
     gboolean auto_commit_spacing_enabled =
         !!rime_api->get_option(
             rime_engine->session_id, QIWO_AUTO_COMMIT_SPACING_OPTION);
+    g_autofree gchar *before_cursor = NULL;
+    g_autofree gchar *after_cursor = NULL;
+    if (auto_commit_spacing_enabled) {
+      ibus_rime_engine_get_commit_surrounding_text(
+          rime_engine, &before_cursor, &after_cursor);
+    }
     gchar *formatted_commit_text = qiwo_input_format_bridge_format_commit_text(
-        commit.text, NULL, NULL, auto_commit_spacing_enabled);
+        commit.text, before_cursor, after_cursor, auto_commit_spacing_enabled);
     text = ibus_text_new_from_string(formatted_commit_text);
     g_free(formatted_commit_text);
     // the text object will be released by ibus
@@ -593,6 +603,64 @@ static void ibus_rime_engine_property_activate (IBusEngine *engine,
         !rime_api->get_option(rime_engine->session_id, "ascii_mode"));
     ibus_rime_engine_update(rime_engine);
   }
+}
+
+static gchar *
+ibus_rime_text_slice_by_char_range(const gchar *text,
+                                   glong start,
+                                   glong end)
+{
+  if (!text || start >= end) {
+    return NULL;
+  }
+
+  const gchar *slice_start = g_utf8_offset_to_pointer(text, start);
+  const gchar *slice_end = g_utf8_offset_to_pointer(text, end);
+  if (slice_start >= slice_end) {
+    return NULL;
+  }
+  return g_strndup(slice_start, slice_end - slice_start);
+}
+
+static void
+ibus_rime_engine_get_commit_surrounding_text(IBusRimeEngine *rime_engine,
+                                             gchar **before_cursor,
+                                             gchar **after_cursor)
+{
+  IBusText *surrounding_text = NULL;
+  guint cursor_pos = 0;
+  guint anchor_pos = 0;
+
+  g_return_if_fail(before_cursor != NULL);
+  g_return_if_fail(after_cursor != NULL);
+
+  *before_cursor = NULL;
+  *after_cursor = NULL;
+
+  ibus_engine_get_surrounding_text(
+      (IBusEngine *)rime_engine, &surrounding_text, &cursor_pos, &anchor_pos);
+  if (!surrounding_text) {
+    return;
+  }
+
+  const gchar *surrounding = ibus_text_get_text(surrounding_text);
+  if (!surrounding || surrounding[0] == '\0') {
+    g_object_unref(surrounding_text);
+    return;
+  }
+
+  glong text_length = g_utf8_strlen(surrounding, -1);
+  glong start_pos = MIN((glong)cursor_pos, (glong)anchor_pos);
+  glong end_pos = MAX((glong)cursor_pos, (glong)anchor_pos);
+  start_pos = CLAMP(start_pos, 0, text_length);
+  end_pos = CLAMP(end_pos, 0, text_length);
+
+  *before_cursor = ibus_rime_text_slice_by_char_range(
+      surrounding, MAX((glong)0, start_pos - 8), start_pos);
+  *after_cursor = ibus_rime_text_slice_by_char_range(
+      surrounding, end_pos, MIN(text_length, end_pos + 8));
+
+  g_object_unref(surrounding_text);
 }
 
 static void ibus_rime_engine_candidate_clicked (IBusEngine *engine,
