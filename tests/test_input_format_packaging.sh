@@ -27,8 +27,8 @@ grep -q 'path = qiwo-input-format-core' "$gitmodules" || {
   exit 1
 }
 
-grep -q 'url = https://github.com/onl-star/qiwo-input-format-core.git' "$gitmodules" || {
-  echo ".gitmodules does not use the sub qiwo-input-format-core repository URL" >&2
+grep -q 'url = https://github.com/LeaWron/qiwo-input-format-core.git' "$gitmodules" || {
+  echo ".gitmodules does not use the canonical qiwo-input-format-core repository URL" >&2
   exit 1
 }
 
