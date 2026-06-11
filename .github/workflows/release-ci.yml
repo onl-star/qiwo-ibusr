@@ -19,25 +19,18 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Checkout qiwo-sync-core
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.repository_owner }}/qiwo-sync-core
-          path: qiwo-sync-core
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake pkg-config \
-            libibus-1.0-dev libnotify-dev librime-dev \
+            libibus-1.0-dev libnotify-dev libgtk-3-dev libsecret-1-dev librime-dev \
             git
 
       - name: Setup Rust
-        run: rustup toolchain install stable --profile minimal
-
-      - name: Build qiwo-sync-core
-        run: cargo build --manifest-path qiwo-sync-core/Cargo.toml --release -p qiwo-rime-sync
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
 
       - name: Configure build
         run: |
@@ -48,37 +41,33 @@ jobs:
       - name: Build
         run: cmake --build build -j$(nproc)
 
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
       - name: Package
         run: |
           VERSION=$(git describe --always)
           PKG_DIR=/tmp/qiwo-ibus-${VERSION}
+          STAGE_DIR=/tmp/qiwo-ibus-stage-${VERSION}
 
-          mkdir -p ${PKG_DIR}/bin
-          mkdir -p ${PKG_DIR}/icons
-
-          cp build/ibus-engine-rime ${PKG_DIR}/bin/
-          cp build/qiwo.xml ${PKG_DIR}/
-          cp -r icons/* ${PKG_DIR}/icons/ 2>/dev/null || true
-          cp qiwo-sync-core/target/release/qiwo-rime-sync ${PKG_DIR}/bin/
+          rm -rf "${PKG_DIR}" "${STAGE_DIR}"
+          DESTDIR="${STAGE_DIR}" cmake --install build
+          mkdir -p "${PKG_DIR}"
+          cp -a "${STAGE_DIR}/usr" "${PKG_DIR}/usr"
 
           cat > ${PKG_DIR}/install.sh << 'INSTALL_EOF'
           #!/usr/bin/env bash
-          set -e
+          set -euo pipefail
 
           PREFIX="${PREFIX:-/usr}"
           echo "==> 安装 Qiwo Input Method for Linux ..."
 
-          sudo mkdir -p "${PREFIX}/libexec/qiwo"
-          sudo mkdir -p "${PREFIX}/share/ibus/component"
-          sudo mkdir -p "${PREFIX}/share/qiwo/icons"
-          sudo mkdir -p "${PREFIX}/bin"
-
           SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-          sudo cp "${SCRIPT_DIR}/bin/ibus-engine-rime" "${PREFIX}/libexec/qiwo/"
-          sudo cp "${SCRIPT_DIR}/qiwo.xml" "${PREFIX}/share/ibus/component/"
-          sudo cp -r "${SCRIPT_DIR}/icons/"* "${PREFIX}/share/qiwo/icons/" 2>/dev/null || true
-          sudo cp "${SCRIPT_DIR}/bin/qiwo-rime-sync" "${PREFIX}/bin/"
+          sudo mkdir -p "${PREFIX}"
+          sudo cp -a "${SCRIPT_DIR}/usr/." "${PREFIX}/"
+          if command -v ldconfig >/dev/null 2>&1; then
+            sudo ldconfig || true
+          fi
 
           echo "==> 重启 IBus ..."
           ibus-daemon -drx 2>/dev/null || true
@@ -86,6 +75,12 @@ jobs:
           echo "==> 安装完成！请在 IBus 设置中添加「齐我输入法」"
           INSTALL_EOF
           chmod +x ${PKG_DIR}/install.sh
+
+          test -x "${PKG_DIR}/usr/libexec/qiwo/ibus-engine-rime"
+          test -x "${PKG_DIR}/usr/bin/qiwo-webdav-settings"
+          test -x "${PKG_DIR}/usr/share/qiwo/qiwo-rime-sync"
+          test -f "${PKG_DIR}/usr/libexec/qiwo/libqiwo_input_format.so"
+          test -f "${PKG_DIR}/usr/share/ibus/component/qiwo.xml"
 
           cd /tmp
           tar -czf qiwo-ibus-${VERSION}.tar.gz qiwo-ibus-${VERSION}/
