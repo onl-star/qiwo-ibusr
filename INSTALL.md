@@ -187,7 +187,11 @@ ibus-setup
 patch:
   schema_list:
     - schema: rime_frost
+  switcher/hotkeys/@next: F4
+  switcher/save_options/@next: auto_commit_spacing
 ```
+
+齐我不会修改 `rime-frost` 子模块本身。`中英数字自动空格` 的 Rime 方案选单入口由齐我生成的 `rime_frost*.custom.yaml` 注入，真正的提交文本格式化由 `qiwo-input-format-core` 执行。
 
 已有的非空 `default.custom.yaml` 不会被覆盖。
 

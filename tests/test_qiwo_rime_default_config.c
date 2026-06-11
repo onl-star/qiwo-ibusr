@@ -30,6 +30,12 @@ default_custom_path(void)
   return g_build_filename(test_rime_dir, "default.custom.yaml", NULL);
 }
 
+static gchar *
+frost_custom_path(void)
+{
+  return g_build_filename(test_rime_dir, "rime_frost.custom.yaml", NULL);
+}
+
 static void
 test_creates_rime_frost_default(void)
 {
@@ -46,6 +52,17 @@ test_creates_rime_frost_default(void)
   g_assert_true(g_file_get_contents(path, &content, NULL, &error));
   g_assert_no_error(error);
   g_assert_nonnull(strstr(content, "schema: rime_frost"));
+  g_assert_nonnull(strstr(content, "switcher/hotkeys/@next: F4"));
+  g_assert_nonnull(strstr(content, "switcher/save_options/@next: auto_commit_spacing"));
+
+  g_autofree gchar *schema_custom_path = frost_custom_path();
+  g_clear_pointer(&content, g_free);
+  g_assert_true(g_file_get_contents(schema_custom_path, &content, NULL, &error));
+  g_assert_no_error(error);
+  g_assert_nonnull(strstr(content, "switches/@next"));
+  g_assert_nonnull(strstr(content, "auto_commit_spacing"));
+  g_assert_nonnull(strstr(content, "关闭中英数字自动空格"));
+  g_assert_nonnull(strstr(content, "开启中英数字自动空格"));
 
   teardown_rime_dir();
 }
@@ -70,6 +87,12 @@ test_preserves_existing_nonempty_default(void)
   g_assert_true(g_file_get_contents(path, &content, NULL, &error));
   g_assert_no_error(error);
   g_assert_cmpstr(content, ==, existing);
+
+  g_autofree gchar *schema_custom_path = frost_custom_path();
+  g_clear_pointer(&content, g_free);
+  g_assert_true(g_file_get_contents(schema_custom_path, &content, NULL, &error));
+  g_assert_no_error(error);
+  g_assert_nonnull(strstr(content, "auto_commit_spacing"));
 
   teardown_rime_dir();
 }
