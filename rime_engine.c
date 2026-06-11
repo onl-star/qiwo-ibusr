@@ -70,6 +70,10 @@ static void ibus_rime_engine_get_commit_surrounding_text(
     IBusRimeEngine *rime_engine,
     gchar **before_cursor,
     gchar **after_cursor);
+static gboolean ibus_rime_engine_maybe_commit_direct_text(
+    IBusRimeEngine *rime_engine,
+    guint keyval,
+    guint modifiers);
 
 G_DEFINE_TYPE (IBusRimeEngine, ibus_rime_engine, IBUS_TYPE_ENGINE)
 
@@ -574,7 +578,78 @@ ibus_rime_engine_process_key_event (IBusEngine *engine,
   gboolean result =
       rime_api->process_key(rime_engine->session_id, keyval, modifiers);
   ibus_rime_engine_update(rime_engine);
+  if (!result) {
+    result = ibus_rime_engine_maybe_commit_direct_text(
+        rime_engine, keyval, modifiers);
+  }
   return result;
+}
+
+static gboolean
+ibus_rime_key_event_to_direct_text(guint keyval,
+                                   guint modifiers,
+                                   gchar **direct_text)
+{
+  g_return_val_if_fail(direct_text != NULL, FALSE);
+  *direct_text = NULL;
+
+  if (modifiers & (IBUS_RELEASE_MASK | IBUS_CONTROL_MASK | IBUS_MOD1_MASK)) {
+    return FALSE;
+  }
+
+  gunichar ch = ibus_keyval_to_unicode(keyval);
+  if (ch < 0x21 || ch > 0x7e) {
+    return FALSE;
+  }
+
+  gchar utf8[7] = {0};
+  gint length = g_unichar_to_utf8(ch, utf8);
+  if (length <= 0) {
+    return FALSE;
+  }
+  utf8[length] = '\0';
+  *direct_text = g_strdup(utf8);
+  return TRUE;
+}
+
+static gboolean
+ibus_rime_engine_maybe_commit_direct_text(IBusRimeEngine *rime_engine,
+                                          guint keyval,
+                                          guint modifiers)
+{
+  if (!rime_engine ||
+      rime_engine->status.is_disabled ||
+      rime_engine->status.is_composing ||
+      !rime_api->get_option(
+          rime_engine->session_id, QIWO_AUTO_COMMIT_SPACING_OPTION)) {
+    return FALSE;
+  }
+
+  g_autofree gchar *direct_text = NULL;
+  if (!ibus_rime_key_event_to_direct_text(keyval, modifiers, &direct_text)) {
+    return FALSE;
+  }
+
+  g_autofree gchar *before_cursor = NULL;
+  g_autofree gchar *after_cursor = NULL;
+  ibus_rime_engine_get_commit_surrounding_text(
+      rime_engine, &before_cursor, &after_cursor);
+
+  gchar *formatted_text = qiwo_input_format_bridge_format_commit_text(
+      direct_text, before_cursor, after_cursor, TRUE);
+  if (!formatted_text) {
+    return FALSE;
+  }
+
+  if (!g_strcmp0(formatted_text, direct_text)) {
+    g_free(formatted_text);
+    return FALSE;
+  }
+
+  IBusText *text = ibus_text_new_from_string(formatted_text);
+  g_free(formatted_text);
+  ibus_engine_commit_text((IBusEngine *)rime_engine, text);
+  return TRUE;
 }
 
 static void ibus_rime_engine_property_activate (IBusEngine *engine,

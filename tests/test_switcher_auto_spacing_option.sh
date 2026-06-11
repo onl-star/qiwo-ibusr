@@ -77,6 +77,12 @@ if "ibus_engine_get_surrounding_text" not in engine_source:
     fail("rime_engine.c does not pass IBus surrounding text to the formatter")
 if "commit.text, before_cursor, after_cursor" not in engine_source:
     fail("rime_engine.c does not pass cursor context to qiwo-input-format-core")
+if "ibus_rime_engine_maybe_commit_direct_text" not in engine_source:
+    fail("rime_engine.c does not format safe direct ASCII input after Rime passes it through")
+if "IBUS_RELEASE_MASK | IBUS_CONTROL_MASK | IBUS_MOD1_MASK" not in engine_source:
+    fail("rime_engine.c direct input fallback is missing conservative modifier guards")
+if "g_strcmp0(formatted_text, direct_text)" not in engine_source:
+    fail("rime_engine.c direct input fallback must only eat changed formatted text")
 if "size.uint64Value > 0" in default_config_source or "meta.len() > 0" in sync_frost_source:
     fail("custom.yaml initialization still skips non-empty existing files")
 if "switcher_auto_spacing_option" not in cmake_source:
