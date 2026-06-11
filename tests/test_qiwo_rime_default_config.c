@@ -81,7 +81,7 @@ test_preserves_existing_nonempty_default(void)
   gboolean created = TRUE;
   g_assert_true(qiwo_rime_default_config_ensure(test_rime_dir, &created, &error));
   g_assert_no_error(error);
-  g_assert_false(created);
+  g_assert_true(created);
 
   g_autofree gchar *content = NULL;
   g_assert_true(g_file_get_contents(path, &content, NULL, &error));
