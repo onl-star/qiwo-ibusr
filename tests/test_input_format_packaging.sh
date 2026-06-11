@@ -10,6 +10,7 @@ bridge_source="$root/qiwo_input_format_bridge.c"
 engine_source="$root/rime_engine.c"
 config_file="$root/ibus_rime.yaml"
 install_doc="$root/INSTALL.md"
+gitmodules="$root/.gitmodules"
 
 grep -q 'QIWO_INPUT_FORMAT_CORE_DIR' "$cmake_file" || {
   echo "CMake does not expose QIWO_INPUT_FORMAT_CORE_DIR" >&2
@@ -18,6 +19,16 @@ grep -q 'QIWO_INPUT_FORMAT_CORE_DIR' "$cmake_file" || {
 
 grep -q 'qiwo-input-format-core/Cargo.toml' "$cmake_file" || {
   echo "CMake does not prefer the bundled qiwo-input-format-core submodule" >&2
+  exit 1
+}
+
+grep -q 'path = qiwo-input-format-core' "$gitmodules" || {
+  echo ".gitmodules does not declare qiwo-input-format-core" >&2
+  exit 1
+}
+
+grep -q 'url = https://github.com/onl-star/qiwo-input-format-core.git' "$gitmodules" || {
+  echo ".gitmodules does not use the sub qiwo-input-format-core repository URL" >&2
   exit 1
 }
 

@@ -78,19 +78,12 @@ cd qiwo-ibusr
 
 - `rime-frost`：默认输入方案资源
 - `qiwo-sync-core`：共享 WebDAV 同步命令
+- `qiwo-input-format-core`：共享提交文本格式化库
 
-另外，Linux 构建需要共享提交文本格式化库 `qiwo-input-format-core`。在顶层工作区中它位于 `qiwo-ibusr` 的同级目录，CMake 会默认查找 `../qiwo-input-format-core`。如果是独立克隆 `qiwo-ibusr`，请把 `qiwo-input-format-core` 克隆到同级目录，或在手动 CMake 配置时指定 `QIWO_INPUT_FORMAT_CORE_DIR`。
-
-如果要手动初始化 `qiwo-ibusr` 内部子模块，只需要拉这两个：
-
-```bash
-git submodule update --init --recursive rime-frost qiwo-sync-core
-```
-
-在顶层工作区中，还需要初始化同级的 input-format submodule：
+如果要手动初始化 `qiwo-ibusr` 内部子模块，只需要拉这三个：
 
 ```bash
-git submodule update --init --recursive qiwo-input-format-core
+git submodule update --init --recursive rime-frost qiwo-sync-core qiwo-input-format-core
 ```
 
 > 注意：librime 和 plum 子模块仅用于参考，编译时使用系统中已安装的 `librime-dev`。

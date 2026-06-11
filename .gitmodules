@@ -9,4 +9,8 @@
 	url = https://github.com/gaboolic/rime-frost.git
 [submodule "qiwo-sync-core"]
 	path = qiwo-sync-core
-	url = https://github.com/LeaWron/qiwo-sync-core.git
+	url = https://github.com/onl-star/qiwo-sync-core.git
+[submodule "qiwo-input-format-core"]
+	path = qiwo-input-format-core
+	url = https://github.com/onl-star/qiwo-input-format-core.git
+	branch = main
