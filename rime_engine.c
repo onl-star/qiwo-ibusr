@@ -21,6 +21,7 @@ struct _IBusRimeEngine {
   /* members */
   RimeSessionId session_id;
   RimeStatus status;
+  guint capabilities;
   IBusLookupTable* table;
   IBusPropList* props;
 };
@@ -91,6 +92,7 @@ ibus_rime_engine_class_init (IBusRimeEngineClass *klass)
   engine_class->reset = ibus_rime_engine_reset;
   engine_class->enable = ibus_rime_engine_enable;
   engine_class->disable = ibus_rime_engine_disable;
+  engine_class->set_capabilities = ibus_rime_engine_set_capabilities;
   engine_class->property_activate = ibus_rime_engine_property_activate;
   engine_class->candidate_clicked = ibus_rime_engine_candidate_clicked;
   engine_class->page_up = ibus_rime_engine_page_up;
@@ -118,6 +120,7 @@ ibus_rime_engine_init (IBusRimeEngine *rime_engine)
 
   RIME_STRUCT_INIT(RimeStatus, rime_engine->status);
   RIME_STRUCT_CLEAR(rime_engine->status);
+  rime_engine->capabilities = 0;
 
   rime_engine->table = ibus_lookup_table_new(9, 0, TRUE, FALSE);
   g_object_ref_sink(rime_engine->table);
@@ -259,6 +262,7 @@ static void ibus_rime_update_status(IBusRimeEngine *rime_engine,
   if (status &&
       rime_engine->status.is_disabled == status->is_disabled &&
       rime_engine->status.is_ascii_mode == status->is_ascii_mode &&
+      rime_engine->status.is_composing == status->is_composing &&
       rime_engine->status.schema_id && status->schema_id &&
       !strcmp(rime_engine->status.schema_id, status->schema_id)) {
     // no updates
@@ -267,6 +271,7 @@ static void ibus_rime_update_status(IBusRimeEngine *rime_engine,
 
   rime_engine->status.is_disabled = status ? status->is_disabled : False;
   rime_engine->status.is_ascii_mode = status ? status->is_ascii_mode : False;
+  rime_engine->status.is_composing = status ? status->is_composing : False;
   if (rime_engine->status.schema_id) {
     g_free(rime_engine->status.schema_id);
   }
@@ -585,6 +590,13 @@ ibus_rime_engine_process_key_event (IBusEngine *engine,
   return result;
 }
 
+static void
+ibus_rime_engine_set_capabilities(IBusEngine *engine, guint caps)
+{
+  IBusRimeEngine *rime_engine = (IBusRimeEngine *)engine;
+  rime_engine->capabilities = caps;
+}
+
 static gboolean
 ibus_rime_key_event_to_direct_text(guint keyval,
                                    guint modifiers,
@@ -711,6 +723,10 @@ ibus_rime_engine_get_commit_surrounding_text(IBusRimeEngine *rime_engine,
 
   *before_cursor = NULL;
   *after_cursor = NULL;
+
+  if (!(rime_engine->capabilities & IBUS_CAP_SURROUNDING_TEXT)) {
+    return;
+  }
 
   ibus_engine_get_surrounding_text(
       (IBusEngine *)rime_engine, &surrounding_text, &cursor_pos, &anchor_pos);

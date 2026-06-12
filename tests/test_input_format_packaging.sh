@@ -97,6 +97,26 @@ grep -q 'qiwo_input_format_bridge_format_commit_text' "$engine_source" || {
   exit 1
 }
 
+grep -q 'engine_class->set_capabilities = ibus_rime_engine_set_capabilities' "$engine_source" || {
+  echo "rime engine does not receive IBus client capabilities" >&2
+  exit 1
+}
+
+grep -q 'rime_engine->capabilities = caps' "$engine_source" || {
+  echo "rime engine does not store IBus client capabilities" >&2
+  exit 1
+}
+
+grep -q 'IBUS_CAP_SURROUNDING_TEXT' "$engine_source" || {
+  echo "rime engine does not guard surrounding text lookup with IBus capability" >&2
+  exit 1
+}
+
+grep -q 'rime_engine->status.is_composing = status ? status->is_composing : False' "$engine_source" || {
+  echo "rime engine does not keep composing status in sync" >&2
+  exit 1
+}
+
 grep -Fq 'ibus_engine_commit_text((IBusEngine *)rime_engine, text)' "$engine_source" || {
   echo "rime engine commit call was unexpectedly removed" >&2
   exit 1
